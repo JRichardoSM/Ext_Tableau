@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
-  <worksheet-extension id="com.telasist.gauge.custom" extension-version="1.0.0">
+  <worksheet-extension id="com.telasist.gauge.v1" extension-version="1.0.0" extension-mode="viz">
     <default-locale>es_MX</default-locale>
     <name resource-id="name"/>
-    <description>Gauge Chart - Telasist</description>
+    <description>Gauge Chart para Telasist. Compatible con Tableau Desktop y Tableau Cloud.</description>
     <author name="Telasist BI" email="jadid.sanchez@telasist.com" organization="Telasist" website="https://telasist.com"/>
     <min-api-version>1.11</min-api-version>
     <source-location>
-      <url>https://jrichardosm.github.io/Ext_Tableau</url>
+      <url>https://jrichardosm.github.io/Ext_Tableau/</url>
     </source-location>
-    <icon>iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAABuklEQVR4nO2bvU7DMBCEP4QKIW4CIXoDD8DKNRI8CAIhXg4hXg4hXq4hXg4hXo4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4h</icon>
+    <icon>iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4wEQECsVOcGVMQAAAGlJREFUaN7t0EERACAIBND9l9YBDnCABuziXSdJ27U9kiQJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMAAP//AwBQSwECLQAUAAYACAAAACEAWvRelAAAABQAAAAIAAAAAAAAAAAAIAAAAAAAAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAIAAgBxAAAAPgAAAAAA</icon>
     <context-menu>
       <configure-context-menu-item></configure-context-menu-item>
     </context-menu>

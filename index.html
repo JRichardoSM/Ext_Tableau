@@ -1,182 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Gauge Chart</title>
+  <!--
+    Tableau Viz Extension API — versión latest oficial
+    Compatible con Tableau Desktop 2021.4+ y Tableau Cloud
+  -->
   <script src="https://public.tableau.com/javascripts/api/tableau.extensions.1.latest.min.js"></script>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:100%; height:100%; overflow:hidden; background:transparent; }
-    #wrap { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-    svg#g { overflow:visible; display:block; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow:hidden;background:transparent}
+    #wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+    svg{display:block;overflow:visible}
 
-    #cfg-panel {
-      position:fixed; inset:0; background:rgba(0,0,0,.5);
-      display:none; align-items:center; justify-content:center; z-index:99;
-    }
-    #cfg-panel.on { display:flex; }
-    .box { background:#fff; border-radius:8px; padding:22px; min-width:310px; font-family:Arial,sans-serif; box-shadow:0 4px 20px rgba(0,0,0,.25); }
-    .box h2 { font-size:14px; color:#0B2545; margin-bottom:12px; }
-    .row { display:flex; align-items:center; margin-bottom:8px; gap:6px; }
-    .row label { width:135px; font-size:12px; color:#555; }
-    .row input[type=number],.row input[type=text] { flex:1; padding:4px 7px; border:1px solid #ccc; border-radius:4px; font-size:12px; }
-    .row input[type=color] { width:36px; height:26px; padding:1px; border:1px solid #ccc; border-radius:4px; cursor:pointer; }
-    .cv { width:66px!important; flex:none!important; }
-    .btns { display:flex; gap:8px; margin-top:14px; justify-content:flex-end; }
-    .ok  { background:#0B2545; color:#fff; border:none; border-radius:4px; padding:7px 18px; cursor:pointer; font-size:12px; }
-    .ok:hover { background:#13A8A8; }
-    .can { background:#eee; color:#333; border:none; border-radius:4px; padding:7px 14px; cursor:pointer; font-size:12px; }
+    /* ── Config panel ── */
+    #panel{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9}
+    #panel.show{display:flex}
+    .box{background:#fff;border-radius:8px;padding:22px;width:300px;font-family:Arial,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+    .box h3{font-size:13px;color:#0B2545;margin-bottom:12px}
+    .r{display:flex;align-items:center;margin-bottom:7px;gap:6px}
+    .r label{width:130px;font-size:11px;color:#555;flex-shrink:0}
+    .r input[type=number],.r input[type=text]{flex:1;padding:4px 6px;border:1px solid #ccc;border-radius:3px;font-size:11px}
+    .r input[type=color]{width:34px;height:24px;border:1px solid #ccc;border-radius:3px;padding:1px;cursor:pointer}
+    .cv{width:62px!important;flex:none!important}
+    .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+    .ok{background:#0B2545;color:#fff;border:none;border-radius:4px;padding:6px 16px;cursor:pointer;font-size:11px}
+    .ok:hover{background:#13A8A8}
+    .cn{background:#eee;color:#333;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:11px}
   </style>
 </head>
 <body>
-<div id="wrap"><svg id="g" viewBox="-120 -105 240 140" width="100%" height="100%"></svg></div>
+<div id="wrap">
+  <svg id="g" viewBox="-120 -108 240 145" width="100%" height="100%"></svg>
+</div>
 
-<div id="cfg-panel">
+<div id="panel">
   <div class="box">
-    <h2>⚙ Configurar Gauge</h2>
-    <div class="row"><label>Mínimo</label><input type="number" id="i-min" value="0"/></div>
-    <div class="row"><label>Máx segmento Verde</label><input type="number" id="i-s1" value="33"/></div>
-    <div class="row"><label>Máx segmento Amarillo</label><input type="number" id="i-s2" value="67"/></div>
-    <div class="row"><label>Máximo total</label><input type="number" id="i-max" value="100"/></div>
-    <div class="row"><label>Color Verde</label><input type="color" id="i-c1" value="#3e8e2a"/><input type="text" class="cv" id="i-c1t" value="#3e8e2a"/></div>
-    <div class="row"><label>Color Amarillo</label><input type="color" id="i-c2" value="#f2e52c"/><input type="text" class="cv" id="i-c2t" value="#f2e52c"/></div>
-    <div class="row"><label>Color Rojo</label><input type="color" id="i-c3" value="#ff0000"/><input type="text" class="cv" id="i-c3t" value="#ff0000"/></div>
-    <div class="row"><label>Sufijo etiqueta</label><input type="text" id="i-sfx" value=" min."/></div>
-    <div class="row"><label>Decimales</label><input type="number" id="i-dec" value="0" min="0" max="3"/></div>
+    <h3>⚙ Configurar Gauge</h3>
+    <div class="r"><label>Mínimo</label><input type="number" id="mn" value="0"/></div>
+    <div class="r"><label>Máx Verde</label><input type="number" id="s1" value="33"/></div>
+    <div class="r"><label>Máx Amarillo</label><input type="number" id="s2" value="67"/></div>
+    <div class="r"><label>Máximo total</label><input type="number" id="mx" value="100"/></div>
+    <div class="r"><label>Color Verde</label><input type="color" id="c1" value="#3e8e2a"/><input type="text" class="cv" id="c1t" value="#3e8e2a"/></div>
+    <div class="r"><label>Color Amarillo</label><input type="color" id="c2" value="#f2e52c"/><input type="text" class="cv" id="c2t" value="#f2e52c"/></div>
+    <div class="r"><label>Color Rojo</label><input type="color" id="c3" value="#ff0000"/><input type="text" class="cv" id="c3t" value="#ff0000"/></div>
+    <div class="r"><label>Sufijo (ej: min.)</label><input type="text" id="sx" value=" min."/></div>
+    <div class="r"><label>Decimales</label><input type="number" id="dc" value="0" min="0" max="3"/></div>
     <div class="btns">
-      <button class="can" id="b-can">Cancelar</button>
-      <button class="ok"  id="b-ok">Guardar</button>
+      <button class="cn" id="bcn">Cancelar</button>
+      <button class="ok" id="bok">Guardar</button>
     </div>
   </div>
 </div>
 
 <script>
-// ── CONFIG ───────────────────────────────────────────────────────
-var C = { min:0, s1:33, s2:67, max:100, c1:'#3e8e2a', c2:'#f2e52c', c3:'#ff0000', sfx:' min.', dec:0 };
+// ── ESTADO ───────────────────────────────────────────────────────
+var C = {mn:0,s1:33,s2:67,mx:100,c1:'#3e8e2a',c2:'#f2e52c',c3:'#ff0000',sx:' min.',dc:0};
 var curVal = null;
 
-// ── GEOMETRY ─────────────────────────────────────────────────────
-function r2d(a){ return (a-180)*Math.PI/180; }
-function xy(a,r){ return [+(r*Math.cos(r2d(a))).toFixed(3), +(r*Math.sin(r2d(a))).toFixed(3)]; }
+// ── GEOMETRÍA ────────────────────────────────────────────────────
+function r2(a){ return (a-180)*Math.PI/180; }
+function pt(a,r){ return [+(r*Math.cos(r2(a))).toFixed(3), +(r*Math.sin(r2(a))).toFixed(3)]; }
 function arcD(r,a1,a2){
-  var s=xy(a1,r), e=xy(a2,r), lg=(a2-a1)>180?1:0;
+  var s=pt(a1,r),e=pt(a2,r),lg=(a2-a1)>180?1:0;
   return 'M'+s[0]+' '+s[1]+' A'+r+' '+r+' 0 '+lg+' 1 '+e[0]+' '+e[1];
 }
-function v2a(v){ return 180 - Math.max(0,Math.min(1,(v-C.min)/(C.max-C.min)))*180; }
+function v2a(v){ return 180-Math.max(0,Math.min(1,(v-C.mn)/(C.mx-C.mn)))*180; }
 
-// ── DRAW ─────────────────────────────────────────────────────────
+// ── DIBUJAR ──────────────────────────────────────────────────────
 function draw(val){
   var svg=document.getElementById('g');
-  var OR=95, SW=32;
-  var a0=180, a1=v2a(C.s1), a2=v2a(C.s2), a3=0;
+  var OR=95,SW=30;
+  var a0=180,a1=v2a(C.s1),a2=v2a(C.s2),a3=0;
   var h='';
 
-  // Arco verde
+  // Arcos de color
   h+='<path d="'+arcD(OR,a0,a1)+'" fill="none" stroke="'+C.c1+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  // Arco amarillo
-  if(a1>a2+0.5) h+='<path d="'+arcD(OR,a1,a2)+'" fill="none" stroke="'+C.c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  // Arco rojo
-  if(a2>a3+0.5) h+='<path d="'+arcD(OR,a2,a3)+'" fill="none" stroke="'+C.c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+  if(a1>a2+0.3) h+='<path d="'+arcD(OR,a1,a2)+'" fill="none" stroke="'+C.c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+  if(a2>a3+0.3) h+='<path d="'+arcD(OR,a2,a3)+'" fill="none" stroke="'+C.c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
 
-  // Separadores blancos entre segmentos
+  // Separadores blancos
   [a0,a1,a2,a3].forEach(function(a){
-    var p1=xy(a,OR-SW/2-2), p2=xy(a,OR+SW/2+2);
-    h+='<line x1="'+p1[0]+'" y1="'+p1[1]+'" x2="'+p2[0]+'" y2="'+p2[1]+'" stroke="white" stroke-width="2.5"/>';
+    var p1=pt(a,OR-SW/2-1),p2=pt(a,OR+SW/2+1);
+    h+='<line x1="'+p1[0]+'" y1="'+p1[1]+'" x2="'+p2[0]+'" y2="'+p2[1]+'" stroke="white" stroke-width="2"/>';
   });
 
-  // Ticks en umbrales
-  [C.min,C.s1,C.s2,C.max].forEach(function(v){
-    var a=v2a(v), t1=xy(a,OR+4), t2=xy(a,OR+13), tl=xy(a,OR+24);
+  // Ticks y etiquetas en umbrales
+  [C.mn,C.s1,C.s2,C.mx].forEach(function(v){
+    var a=v2a(v),t1=pt(a,OR+3),t2=pt(a,OR+12),tl=pt(a,OR+23);
     h+='<line x1="'+t1[0]+'" y1="'+t1[1]+'" x2="'+t2[0]+'" y2="'+t2[1]+'" stroke="#555" stroke-width="1.5"/>';
-    var lbl=(v%1===0)?String(v):v.toFixed(1);
-    h+='<text x="'+tl[0]+'" y="'+tl[1]+'" font-family="Arial,sans-serif" font-size="10" fill="#444" text-anchor="middle" dominant-baseline="central">'+lbl+'</text>';
+    h+='<text x="'+tl[0]+'" y="'+tl[1]+'" font-family="Arial,sans-serif" font-size="10" fill="#444" text-anchor="middle" dominant-baseline="central">'+(v%1===0?v:v.toFixed(1))+'</text>';
   });
 
   // Línea base
-  h+='<line x1="-'+(OR+2)+'" y1="0" x2="'+(OR+2)+'" y2="0" stroke="#ccc" stroke-width="1"/>';
+  h+='<line x1="-'+(OR+1)+'" y1="0.5" x2="'+(OR+1)+'" y2="0.5" stroke="#bbb" stroke-width="1"/>';
 
-  // Aguja y score
+  // Aguja + centro + score
   if(val!==null && !isNaN(val)){
-    var na=v2a(val), np=xy(na,OR-6), b1=xy(na+90,7), b2=xy(na-90,7);
-    h+='<polygon points="'+np[0]+','+np[1]+' '+b1[0]+','+b1[1]+' '+b2[0]+','+b2[1]+'" fill="#111" stroke="none"/>';
+    var na=v2a(val),np=pt(na,OR-5),b1=pt(na+90,7),b2=pt(na-90,7);
+    h+='<polygon points="'+np[0]+','+np[1]+' '+b1[0]+','+b1[1]+' '+b2[0]+','+b2[1]+'" fill="#111"/>';
     h+='<circle cx="0" cy="0" r="9" fill="#111"/>';
-    h+='<circle cx="0" cy="0" r="5" fill="white"/>';
-    var lbl=parseFloat(val).toFixed(C.dec)+C.sfx;
-    h+='<text x="0" y="28" font-family="Arial,sans-serif" font-size="15" font-weight="bold" fill="#222" text-anchor="middle">'+lbl+'</text>';
+    h+='<circle cx="0" cy="0" r="4.5" fill="white"/>';
+    h+='<text x="0" y="30" font-family="Arial,sans-serif" font-size="15" font-weight="bold" fill="#222" text-anchor="middle">'+parseFloat(val).toFixed(C.dc)+C.sx+'</text>';
   } else {
     h+='<circle cx="0" cy="0" r="9" fill="#bbb"/>';
-    h+='<circle cx="0" cy="0" r="5" fill="white"/>';
-    h+='<text x="0" y="28" font-family="Arial,sans-serif" font-size="11" fill="#999" text-anchor="middle">Sin datos</text>';
+    h+='<circle cx="0" cy="0" r="4.5" fill="white"/>';
+    h+='<text x="0" y="30" font-family="Arial,sans-serif" font-size="11" fill="#aaa" text-anchor="middle">Sin datos</text>';
   }
-  svg.innerHTML = h;
+  svg.innerHTML=h;
 }
 
-// ── CONFIG PANEL ─────────────────────────────────────────────────
+// ── PANEL CONFIG ─────────────────────────────────────────────────
 ['c1','c2','c3'].forEach(function(id){
-  var pk=document.getElementById('i-'+id), tx=document.getElementById('i-'+id+'t');
-  pk.addEventListener('input',function(){ tx.value=pk.value; });
-  tx.addEventListener('input',function(){ if(/^#[0-9a-fA-F]{6}$/.test(tx.value)) pk.value=tx.value; });
+  var pk=document.getElementById(id),tx=document.getElementById(id+'t');
+  pk.addEventListener('input',function(){tx.value=pk.value;});
+  tx.addEventListener('input',function(){if(/^#[0-9a-fA-F]{6}$/.test(tx.value))pk.value=tx.value;});
 });
-
 function openCfg(){
-  document.getElementById('i-min').value = C.min;
-  document.getElementById('i-s1').value  = C.s1;
-  document.getElementById('i-s2').value  = C.s2;
-  document.getElementById('i-max').value = C.max;
+  document.getElementById('mn').value=C.mn;
+  document.getElementById('s1').value=C.s1;
+  document.getElementById('s2').value=C.s2;
+  document.getElementById('mx').value=C.mx;
   ['c1','c2','c3'].forEach(function(id){
-    document.getElementById('i-'+id).value  = C[id];
-    document.getElementById('i-'+id+'t').value = C[id];
+    document.getElementById(id).value=C[id];
+    document.getElementById(id+'t').value=C[id];
   });
-  document.getElementById('i-sfx').value = C.sfx;
-  document.getElementById('i-dec').value = C.dec;
-  document.getElementById('cfg-panel').classList.add('on');
+  document.getElementById('sx').value=C.sx;
+  document.getElementById('dc').value=C.dc;
+  document.getElementById('panel').classList.add('show');
 }
-
-document.getElementById('b-can').addEventListener('click',function(){ document.getElementById('cfg-panel').classList.remove('on'); });
-document.getElementById('b-ok').addEventListener('click',function(){
-  C.min = parseFloat(document.getElementById('i-min').value)||0;
-  C.s1  = parseFloat(document.getElementById('i-s1').value)||33;
-  C.s2  = parseFloat(document.getElementById('i-s2').value)||67;
-  C.max = parseFloat(document.getElementById('i-max').value)||100;
-  ['c1','c2','c3'].forEach(function(id){ C[id]=document.getElementById('i-'+id+'t').value; });
-  C.sfx = document.getElementById('i-sfx').value;
-  C.dec = parseInt(document.getElementById('i-dec').value)||0;
-  try { tableau.extensions.settings.set('gaugeCfg',JSON.stringify(C)); tableau.extensions.settings.saveAsync(); } catch(e){}
-  document.getElementById('cfg-panel').classList.remove('on');
+document.getElementById('bcn').addEventListener('click',function(){document.getElementById('panel').classList.remove('show');});
+document.getElementById('bok').addEventListener('click',function(){
+  C.mn=parseFloat(document.getElementById('mn').value)||0;
+  C.s1=parseFloat(document.getElementById('s1').value)||33;
+  C.s2=parseFloat(document.getElementById('s2').value)||67;
+  C.mx=parseFloat(document.getElementById('mx').value)||100;
+  ['c1','c2','c3'].forEach(function(id){C[id]=document.getElementById(id+'t').value;});
+  C.sx=document.getElementById('sx').value;
+  C.dc=parseInt(document.getElementById('dc').value)||0;
+  try{tableau.extensions.settings.set('cfg',JSON.stringify(C));tableau.extensions.settings.saveAsync();}catch(e){}
+  document.getElementById('panel').classList.remove('show');
   draw(curVal);
 });
 
 // ── LEER DATOS ───────────────────────────────────────────────────
 function getData(){
-  try {
-    var ws = tableau.extensions.worksheetContent.worksheet;
-    ws.getSummaryDataAsync({ maxRows:1, ignoreSelection:true, includeAllColumns:true })
+  try{
+    var ws=tableau.extensions.worksheetContent.worksheet;
+    ws.getSummaryDataAsync({maxRows:1,ignoreSelection:true,includeAllColumns:true})
       .then(function(dt){
-        if(!dt.data || dt.data.length===0){ draw(null); return; }
-        var row=dt.data[0], cols=dt.columns, val=null;
-        // Buscar primer valor numérico
+        if(!dt||!dt.data||dt.data.length===0){draw(null);return;}
+        var row=dt.data[0],cols=dt.columns,val=null;
         for(var i=0;i<cols.length;i++){
-          var v=parseFloat(row[i].nativeValue!==undefined ? row[i].nativeValue : row[i].value);
-          if(!isNaN(v)){ val=v; break; }
+          // Usar nativeValue primero (valor numérico real sin formato)
+          var raw=row[i].nativeValue!==undefined?row[i].nativeValue:row[i].value;
+          var v=parseFloat(raw);
+          if(!isNaN(v)){val=v;break;}
         }
-        curVal=val; draw(val);
+        curVal=val;
+        draw(val);
       })
-      .catch(function(){ draw(null); });
-  } catch(e){ draw(null); }
+      .catch(function(e){console.warn('getSummaryData:',e);draw(null);});
+  }catch(e){console.warn('getData:',e);draw(null);}
 }
 
 // ── INIT ─────────────────────────────────────────────────────────
-tableau.extensions.initializeAsync({ configure: openCfg })
+tableau.extensions.initializeAsync({configure:openCfg})
   .then(function(){
-    try { var s=tableau.extensions.settings.get('gaugeCfg'); if(s) C=Object.assign(C,JSON.parse(s)); } catch(e){}
+    // Cargar config guardada
+    try{var s=tableau.extensions.settings.get('cfg');if(s)C=Object.assign(C,JSON.parse(s));}catch(e){}
+    // Leer datos iniciales
     getData();
-    try {
+    // Suscribir a cambios
+    try{
       tableau.extensions.worksheetContent.worksheet
-        .addEventListener(tableau.TableauEventType.SummaryDataChanged, getData);
-    } catch(e){}
+        .addEventListener(tableau.TableauEventType.SummaryDataChanged,getData);
+    }catch(e){console.warn('addEventListener:',e);}
   })
-  .catch(function(){
-    // Demo fuera de Tableau
+  .catch(function(e){
+    // Fuera de Tableau: mostrar demo
+    console.warn('No Tableau context:',e);
     draw(75);
   });
 </script>

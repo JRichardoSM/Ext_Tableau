@@ -9,6 +9,7 @@
     html, body { width:100%; height:100%; overflow:hidden; background:transparent; }
     #content { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
     svg { display:block; overflow:visible; }
+    #hint { position:absolute; top:8px; left:0; right:0; text-align:center; font-family:Arial,sans-serif; font-size:11px; color:#888; }
     #panel { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:9; }
     #panel.show { display:flex; }
     .box { background:#fff; border-radius:8px; padding:22px; width:300px; font-family:Arial,sans-serif; box-shadow:0 4px 24px rgba(0,0,0,.3); }
@@ -27,6 +28,7 @@
 <body>
 <div id="content">
   <svg id="g" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="hint">Arrastra tu medida a <b>Detalle</b> en el Marks card</div>
 </div>
 <div id="panel">
   <div class="box">
@@ -88,6 +90,8 @@ function draw(val){
   var label=(val!==null&&!isNaN(val))?parseFloat(val).toFixed(C.dc)+C.sx:'-- '+C.sx.trim();
   h+='<text x="0" y="'+scoreH+'" font-family="Arial,sans-serif" font-size="'+(OR*0.17)+'" font-weight="bold" fill="#222" text-anchor="middle">'+label+'</text>';
   svg.innerHTML=h;
+  // Ocultar hint si hay valor
+  document.getElementById('hint').style.display = (val!==null&&!isNaN(val)) ? 'none' : 'block';
 }
 
 ['c1','c2','c3'].forEach(function(id){
@@ -116,59 +120,62 @@ document.getElementById('bok').addEventListener('click',function(){
   draw(curVal);
 });
 
-// Lee datos usando TODOS los métodos disponibles en orden
-async function updateDataAndRender(){
-  try {
-    var ws = tableau.extensions.worksheetContent.worksheet;
-    var val = null;
-
-    // Método 1: getSummaryDataReaderAsync con ignoreAllFilters
-    try {
-      var reader = await ws.getSummaryDataReaderAsync(undefined, {ignoreAllFilters: true});
-      var dt = await reader.getAllPagesAsync();
-      await reader.releaseAsync();
-      if(dt && dt.data && dt.data.length > 0){
-        var row = dt.data[0];
-        for(var i=0; i<row.length; i++){
-          var raw = (row[i].nativeValue !== undefined && row[i].nativeValue !== null) ? row[i].nativeValue : row[i].value;
-          var v = parseFloat(String(raw).replace(/[,$\s%]/g,''));
-          if(!isNaN(v) && isFinite(v)){ val = v; break; }
-        }
-      }
-    } catch(e1){}
-
-    // Método 2: getSummaryDataAsync legacy si el reader no dio resultado
-    if(val === null){
-      try {
-        var dt2 = await ws.getSummaryDataAsync({maxRows:1, ignoreSelection:true, includeAllColumns:true});
-        if(dt2 && dt2.data && dt2.data.length > 0){
-          var row2 = dt2.data[0];
-          for(var j=0; j<row2.length; j++){
-            var raw2 = (row2[j].nativeValue !== undefined && row2[j].nativeValue !== null) ? row2[j].nativeValue : row2[j].value;
-            var v2 = parseFloat(String(raw2).replace(/[,$\s%]/g,''));
-            if(!isNaN(v2) && isFinite(v2)){ val = v2; break; }
-          }
-        }
-      } catch(e2){}
+function getFirstNumeric(dataTable){
+  if(!dataTable||!dataTable.data||dataTable.data.length===0) return null;
+  var row=dataTable.data[0], cols=dataTable.columns;
+  // Prioridad: columnas float/int
+  for(var i=0;i<cols.length;i++){
+    if(cols[i].dataType==='float'||cols[i].dataType==='int'){
+      var raw=(row[i].nativeValue!==undefined&&row[i].nativeValue!==null)?row[i].nativeValue:row[i].value;
+      var v=parseFloat(String(raw).replace(/[,$\s%]/g,''));
+      if(!isNaN(v)&&isFinite(v)) return v;
     }
-
-    curVal = val;
-    draw(val);
-  } catch(e){ draw(null); }
+  }
+  // Fallback: cualquier valor numérico
+  for(var j=0;j<row.length;j++){
+    var raw2=(row[j].nativeValue!==undefined&&row[j].nativeValue!==null)?row[j].nativeValue:row[j].value;
+    var v2=parseFloat(String(raw2).replace(/[,$\s%]/g,''));
+    if(!isNaN(v2)&&isFinite(v2)) return v2;
+  }
+  return null;
 }
 
-window.addEventListener('resize', function(){ draw(curVal); });
+async function updateDataAndRender(){
+  try{
+    var ws=tableau.extensions.worksheetContent.worksheet;
+    var val=null;
+
+    // Intentar getSummaryDataReaderAsync
+    try{
+      var reader=await ws.getSummaryDataReaderAsync();
+      var dt=await reader.getAllPagesAsync();
+      await reader.releaseAsync();
+      val=getFirstNumeric(dt);
+    }catch(e1){
+      // Fallback getSummaryDataAsync
+      try{
+        var dt2=await ws.getSummaryDataAsync({maxRows:1,ignoreSelection:true,includeAllColumns:true});
+        val=getFirstNumeric(dt2);
+      }catch(e2){}
+    }
+
+    curVal=val;
+    draw(val);
+  }catch(e){draw(null);}
+}
+
+window.addEventListener('resize',function(){draw(curVal);});
 draw(null);
 
-tableau.extensions.initializeAsync({configure: openCfg})
+tableau.extensions.initializeAsync({configure:openCfg})
   .then(function(){
-    try{ var s=tableau.extensions.settings.get('cfg'); if(s) C=Object.assign(C,JSON.parse(s)); }catch(e){}
+    try{var s=tableau.extensions.settings.get('cfg');if(s)C=Object.assign(C,JSON.parse(s));}catch(e){}
     draw(null);
-    var ws = tableau.extensions.worksheetContent.worksheet;
-    ws.addEventListener(tableau.TableauEventType.SummaryDataChanged, updateDataAndRender);
+    var ws=tableau.extensions.worksheetContent.worksheet;
+    ws.addEventListener(tableau.TableauEventType.SummaryDataChanged,updateDataAndRender);
     updateDataAndRender();
   })
-  .catch(function(){ draw(75); });
+  .catch(function(){draw(75);});
 
 })();
 </script>

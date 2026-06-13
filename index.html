@@ -26,8 +26,7 @@
 </head>
 <body>
 <div id="wrap">
-  <!-- viewBox centrado en 0,0: arco arriba (-Y), score abajo (+Y) -->
-  <svg id="g" viewBox="-115 -105 230 140" width="100%" height="100%"></svg>
+  <svg id="g" viewBox="-115 -125 230 165" width="100%" height="100%"></svg>
 </div>
 <div id="panel">
   <div class="box">
@@ -51,96 +50,70 @@
 var C = {mn:0, s1:33, s2:67, mx:100, c1:'#3e8e2a', c2:'#f2e52c', c3:'#ff0000', sx:' min.', dc:0};
 var curVal = null;
 
-// ── GEOMETRÍA ────────────────────────────────────────────────────
-// Semicírculo SUPERIOR: empieza en (-R, 0) izquierda y termina en (R, 0) derecha
-// pasando por (0, -R) arriba.
-// En SVG: ángulo 180° = izquierda, 0° = derecha
-// Para el arco SUPERIOR usamos sweep-flag=0 (antihorario en SVG donde Y crece abajo)
-// Resultado: arco va por ARRIBA
-
-function rad(deg){ return deg * Math.PI / 180; }
-
-// Coordenadas en el círculo: 0°=der, 90°=abajo, 180°=izq, 270°=arriba
-function pt(angleDeg, r){
-  return [
-    +(r * Math.cos(rad(angleDeg))).toFixed(3),
-    +(r * Math.sin(rad(angleDeg))).toFixed(3)
-  ];
-}
-
-// Valor → ángulo: mn=180°(izq), mx=0°(der), semicírculo superior
-function v2a(v){
-  var pct = Math.max(0, Math.min(1, (v - C.mn) / (C.mx - C.mn)));
-  return 180 - pct * 180;
-}
-
-// Arco superior de a1 a a2 (a1 > a2, ambos en [0,180])
-// sweep=0 = antihorario en SVG = arco que pasa por ARRIBA
+function rad(d){ return d * Math.PI / 180; }
+function pt(a, r){ return [+(r*Math.cos(rad(a))).toFixed(3), +(r*Math.sin(rad(a))).toFixed(3)]; }
+function v2a(v){ return -180 + Math.max(0,Math.min(1,(v-C.mn)/(C.mx-C.mn)))*180; }
 function arcPath(r, a1, a2){
-  var s = pt(a1, r), e = pt(a2, r);
-  var largeArc = (a1 - a2) > 180 ? 1 : 0;
-  return 'M'+s[0]+' '+s[1]+' A'+r+' '+r+' 0 '+largeArc+' 0 '+e[0]+' '+e[1];
+  var s=pt(a1,r), e=pt(a2,r), lg=(a2-a1)>180?1:0;
+  return 'M'+s[0]+' '+s[1]+' A'+r+' '+r+' 0 '+lg+' 1 '+e[0]+' '+e[1];
 }
 
-// ── DRAW ─────────────────────────────────────────────────────────
 function draw(val){
-  var OR = 90, SW = 26;
-  var aL  = 180;       // izquierda = mínimo (verde empieza aquí)
-  var a1  = v2a(C.s1); // fin verde / inicio amarillo
-  var a2  = v2a(C.s2); // fin amarillo / inicio rojo
-  var aR  = 0;         // derecha = máximo (rojo termina aquí)
-  var h = '';
+  var OR=90, SW=26;
+  var IR = OR - SW/2; // radio interior del arco
+  var ER = OR + SW/2; // radio exterior del arco
+  var aL=-180, a1=v2a(C.s1), a2=v2a(C.s2), aR=0;
+  var h='';
 
-  // Segmento VERDE: izq → a1
-  h += '<path d="'+arcPath(OR,aL,a1)+'" fill="none" stroke="'+C.c1+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  // Segmento AMARILLO: a1 → a2
-  if(a1 - a2 > 0.3)
-    h += '<path d="'+arcPath(OR,a1,a2)+'" fill="none" stroke="'+C.c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  // Segmento ROJO: a2 → der
-  if(a2 - aR > 0.3)
-    h += '<path d="'+arcPath(OR,a2,aR)+'" fill="none" stroke="'+C.c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+  // ── Arcos de color ───────────────────────────────────────────
+  h+='<path d="'+arcPath(OR,aL,a1)+'" fill="none" stroke="'+C.c1+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+  if(a2-a1>0.3) h+='<path d="'+arcPath(OR,a1,a2)+'" fill="none" stroke="'+C.c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+  if(aR-a2>0.3) h+='<path d="'+arcPath(OR,a2,aR)+'" fill="none" stroke="'+C.c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
 
-  // Separadores blancos
-  [aL, a1, a2, aR].forEach(function(a){
-    var p1 = pt(a, OR - SW/2 - 1), p2 = pt(a, OR + SW/2 + 1);
-    h += '<line x1="'+p1[0]+'" y1="'+p1[1]+'" x2="'+p2[0]+'" y2="'+p2[1]+'" stroke="white" stroke-width="2"/>';
+  // ── Separadores entre segmentos (solo en s1 y s2, no en extremos) ─
+  // Línea blanca dentro del arco (de IR a ER)
+  // Línea negra tick que sale hacia afuera (de ER a ER+10)
+  [a1, a2].forEach(function(a){
+    var pIR  = pt(a, IR);          // inicio del arco (interior)
+    var pER  = pt(a, ER);          // fin del arco (exterior)
+    var pTick= pt(a, ER + 10);     // tick que sobresale afuera
+
+    // Blanco dentro del arco
+    h+='<line x1="'+pIR[0]+'" y1="'+pIR[1]+'" x2="'+pER[0]+'" y2="'+pER[1]+'" stroke="white" stroke-width="2.5"/>';
+    // Negro que sobresale hacia afuera
+    h+='<line x1="'+pER[0]+'" y1="'+pER[1]+'" x2="'+pTick[0]+'" y2="'+pTick[1]+'" stroke="#333" stroke-width="1.5"/>';
   });
 
-  // Ticks y etiquetas
+  // ── Ticks y etiquetas en los 4 extremos ──────────────────────
   [{v:C.mn,a:aL},{v:C.s1,a:a1},{v:C.s2,a:a2},{v:C.mx,a:aR}].forEach(function(o){
-    var t1 = pt(o.a, OR+3), t2 = pt(o.a, OR+11), tl = pt(o.a, OR+22);
-    h += '<line x1="'+t1[0]+'" y1="'+t1[1]+'" x2="'+t2[0]+'" y2="'+t2[1]+'" stroke="#555" stroke-width="1.5"/>';
-    var lbl = (o.v%1===0) ? String(o.v) : o.v.toFixed(1);
-    h += '<text x="'+tl[0]+'" y="'+tl[1]+'" font-family="Arial,sans-serif" font-size="9.5" fill="#444" text-anchor="middle" dominant-baseline="central">'+lbl+'</text>';
+    var t1=pt(o.a,ER+2), t2=pt(o.a,ER+10), tl=pt(o.a,ER+21);
+    h+='<line x1="'+t1[0]+'" y1="'+t1[1]+'" x2="'+t2[0]+'" y2="'+t2[1]+'" stroke="#555" stroke-width="1.5"/>';
+    var lbl=(o.v%1===0)?String(o.v):o.v.toFixed(1);
+    h+='<text x="'+tl[0]+'" y="'+tl[1]+'" font-family="Arial,sans-serif" font-size="9.5" fill="#444" text-anchor="middle" dominant-baseline="central">'+lbl+'</text>';
   });
 
-  // Línea base
-  h += '<line x1="-'+(OR+2)+'" y1="0" x2="'+(OR+2)+'" y2="0" stroke="#ddd" stroke-width="1"/>';
+  // ── Línea base ───────────────────────────────────────────────
+  h+='<line x1="-'+(OR+2)+'" y1="0" x2="'+(OR+2)+'" y2="0" stroke="#ddd" stroke-width="1"/>';
 
-  // Aguja — apunta desde el centro hacia el arco
-  var dispVal = (val !== null && !isNaN(val)) ? val : C.mn;
-  var na  = v2a(dispVal);
-  var tip = pt(na, OR - 5);
-  var b1  = pt(na + 90, 6);
-  var b2  = pt(na - 90, 6);
-  h += '<polygon points="'+tip[0]+','+tip[1]+' '+b1[0]+','+b1[1]+' '+b2[0]+','+b2[1]+'" fill="#111"/>';
-  h += '<circle cx="0" cy="0" r="8" fill="#111"/>';
-  h += '<circle cx="0" cy="0" r="4" fill="white"/>';
+  // ── Aguja ────────────────────────────────────────────────────
+  var dispVal=(val!==null&&!isNaN(val))?val:C.mn;
+  var na=v2a(dispVal), tip=pt(na,OR-5), b1=pt(na+90,6), b2=pt(na-90,6);
+  h+='<polygon points="'+tip[0]+','+tip[1]+' '+b1[0]+','+b1[1]+' '+b2[0]+','+b2[1]+'" fill="#111"/>';
+  h+='<circle cx="0" cy="0" r="8" fill="#111"/>';
+  h+='<circle cx="0" cy="0" r="4" fill="white"/>';
 
-  // Score
-  var label = (val !== null && !isNaN(val))
-    ? parseFloat(val).toFixed(C.dc) + C.sx
-    : '--' + C.sx.trim();
-  h += '<text x="0" y="26" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#222" text-anchor="middle">'+label+'</text>';
+  // ── Score ────────────────────────────────────────────────────
+  var label=(val!==null&&!isNaN(val))?parseFloat(val).toFixed(C.dc)+C.sx:'--'+C.sx.trim();
+  h+='<text x="0" y="26" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#222" text-anchor="middle">'+label+'</text>';
 
-  document.getElementById('g').innerHTML = h;
+  document.getElementById('g').innerHTML=h;
 }
 
 // ── CONFIG PANEL ─────────────────────────────────────────────────
 ['c1','c2','c3'].forEach(function(id){
-  var pk = document.getElementById(id), tx = document.getElementById(id+'t');
-  pk.addEventListener('input', function(){ tx.value = pk.value; });
-  tx.addEventListener('input', function(){ if(/^#[0-9a-fA-F]{6}$/.test(tx.value)) pk.value = tx.value; });
+  var pk=document.getElementById(id), tx=document.getElementById(id+'t');
+  pk.addEventListener('input',function(){ tx.value=pk.value; });
+  tx.addEventListener('input',function(){ if(/^#[0-9a-fA-F]{6}$/.test(tx.value)) pk.value=tx.value; });
 });
 function openCfg(){
   document.getElementById('mn').value=C.mn; document.getElementById('s1').value=C.s1;
@@ -151,15 +124,15 @@ function openCfg(){
   document.getElementById('sx').value=C.sx; document.getElementById('dc').value=C.dc;
   document.getElementById('panel').classList.add('show');
 }
-document.getElementById('bcn').addEventListener('click', function(){ document.getElementById('panel').classList.remove('show'); });
-document.getElementById('bok').addEventListener('click', function(){
-  C.mn = parseFloat(document.getElementById('mn').value)||0;
-  C.s1 = parseFloat(document.getElementById('s1').value)||33;
-  C.s2 = parseFloat(document.getElementById('s2').value)||67;
-  C.mx = parseFloat(document.getElementById('mx').value)||100;
-  ['c1','c2','c3'].forEach(function(id){ C[id] = document.getElementById(id+'t').value; });
-  C.sx = document.getElementById('sx').value;
-  C.dc = parseInt(document.getElementById('dc').value)||0;
+document.getElementById('bcn').addEventListener('click',function(){ document.getElementById('panel').classList.remove('show'); });
+document.getElementById('bok').addEventListener('click',function(){
+  C.mn=parseFloat(document.getElementById('mn').value)||0;
+  C.s1=parseFloat(document.getElementById('s1').value)||33;
+  C.s2=parseFloat(document.getElementById('s2').value)||67;
+  C.mx=parseFloat(document.getElementById('mx').value)||100;
+  ['c1','c2','c3'].forEach(function(id){ C[id]=document.getElementById(id+'t').value; });
+  C.sx=document.getElementById('sx').value;
+  C.dc=parseInt(document.getElementById('dc').value)||0;
   try{ tableau.extensions.settings.set('cfg',JSON.stringify(C)); tableau.extensions.settings.saveAsync(); }catch(e){}
   document.getElementById('panel').classList.remove('show');
   draw(curVal);
@@ -168,8 +141,8 @@ document.getElementById('bok').addEventListener('click', function(){
 // ── LEER DATOS ───────────────────────────────────────────────────
 function getData(){
   try{
-    var ws = tableau.extensions.worksheetContent.worksheet;
-    ws.getSummaryDataAsync({maxRows:1, ignoreSelection:true, includeAllColumns:true})
+    var ws=tableau.extensions.worksheetContent.worksheet;
+    ws.getSummaryDataAsync({maxRows:1,ignoreSelection:true,includeAllColumns:true})
       .then(function(dt){
         if(!dt||!dt.data||dt.data.length===0){ draw(null); return; }
         var row=dt.data[0], val=null;
@@ -186,7 +159,6 @@ function getData(){
 
 // ── INIT ─────────────────────────────────────────────────────────
 draw(null);
-
 tableau.extensions.initializeAsync({configure:openCfg})
   .then(function(){
     try{ var s=tableau.extensions.settings.get('cfg'); if(s) C=Object.assign(C,JSON.parse(s)); }catch(e){}
@@ -194,7 +166,7 @@ tableau.extensions.initializeAsync({configure:openCfg})
     getData();
     try{
       tableau.extensions.worksheetContent.worksheet
-        .addEventListener(tableau.TableauEventType.SummaryDataChanged, getData);
+        .addEventListener(tableau.TableauEventType.SummaryDataChanged,getData);
     }catch(e){}
   })
   .catch(function(){ draw(75); });

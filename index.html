@@ -52,12 +52,15 @@
 
 var C = {mn:0, s1:33, s2:67, mx:100, c1:'#3e8e2a', c2:'#f2e52c', c3:'#ff0000', sx:' min.', dc:0};
 var curVal = null;
+var ws = null;
 
-function rad(d){ return d * Math.PI / 180; }
+// ── GEOMETRÍA ────────────────────────────────────────────────────
+function rad(d){ return d*Math.PI/180; }
 function pt(a,r){ return [+(r*Math.cos(rad(a))).toFixed(3), +(r*Math.sin(rad(a))).toFixed(3)]; }
-function v2a(v){ return -180 + Math.max(0,Math.min(1,(v-C.mn)/(C.mx-C.mn)))*180; }
+function v2a(v){ return -180+Math.max(0,Math.min(1,(v-C.mn)/(C.mx-C.mn)))*180; }
 function arcPath(r,a1,a2){ var s=pt(a1,r),e=pt(a2,r),lg=(a2-a1)>180?1:0; return 'M'+s[0]+' '+s[1]+' A'+r+' '+r+' 0 '+lg+' 1 '+e[0]+' '+e[1]; }
 
+// ── DRAW ─────────────────────────────────────────────────────────
 function draw(val){
   var sz={w:window.innerWidth,h:window.innerHeight};
   var OR=Math.min(sz.w*0.38,sz.h*0.62), SW=OR*0.28;
@@ -83,13 +86,15 @@ function draw(val){
   });
   h+='<line x1="'+(-(OR+SW*0.1))+'" y1="0" x2="'+(OR+SW*0.1)+'" y2="0" stroke="#ddd" stroke-width="'+(SW*0.04)+'"/>';
   var dv=(val!==null&&!isNaN(val))?val:C.mn, na=v2a(dv), tip=pt(na,OR-SW*0.1), bw=SW*0.22;
-  h+='<polygon points="'+tip[0]+','+tip[1]+' '+pt(na+90,bw)[0]+','+pt(na+90,bw)[1]+' '+pt(na-90,bw)[0]+','+pt(na-90,bw)[1]+'" fill="#111"/>';
+  var b1=pt(na+90,bw), b2=pt(na-90,bw);
+  h+='<polygon points="'+tip[0]+','+tip[1]+' '+b1[0]+','+b1[1]+' '+b2[0]+','+b2[1]+'" fill="#111"/>';
   h+='<circle cx="0" cy="0" r="'+(SW*0.32)+'" fill="#111"/><circle cx="0" cy="0" r="'+(SW*0.16)+'" fill="white"/>';
   var label=(val!==null&&!isNaN(val))?parseFloat(val).toFixed(C.dc)+C.sx:'-- '+C.sx.trim();
   h+='<text x="0" y="'+scoreH+'" font-family="Arial,sans-serif" font-size="'+(OR*0.17)+'" font-weight="bold" fill="#222" text-anchor="middle">'+label+'</text>';
   svg.innerHTML=h;
 }
 
+// ── CONFIG ───────────────────────────────────────────────────────
 ['c1','c2','c3'].forEach(function(id){
   var pk=document.getElementById(id),tx=document.getElementById(id+'t');
   pk.addEventListener('input',function(){tx.value=pk.value;});
@@ -117,66 +122,68 @@ document.getElementById('bok').addEventListener('click',function(){
 });
 
 // ── LEER DATOS ───────────────────────────────────────────────────
-function extractNumeric(raw){
-  if(raw===null||raw===undefined) return null;
-  var v=parseFloat(String(raw).replace(/[,$\s%]/g,''));
-  return (!isNaN(v)&&isFinite(v))?v:null;
-}
-
-function processDataTable(dataTable){
-  if(!dataTable||!dataTable.data||dataTable.data.length===0) return null;
-  // Buscar la primera columna numérica que tenga valor
-  var cols=dataTable.columns, row=dataTable.data[0];
-  // Prioridad 1: columna float o int
-  for(var i=0;i<cols.length;i++){
-    if(cols[i].dataType==='float'||cols[i].dataType==='int'){
-      var v=extractNumeric(row[i].nativeValue!==undefined?row[i].nativeValue:row[i].value);
-      if(v!==null) return v;
-    }
-  }
-  // Prioridad 2: cualquier columna con valor numérico
-  for(var j=0;j<row.length;j++){
-    var v2=extractNumeric(row[j].nativeValue!==undefined?row[j].nativeValue:row[j].value);
-    if(v2!==null) return v2;
-  }
-  return null;
-}
-
+// Patrón oficial: SummaryDataChanged → getSummaryDataReaderAsync
+// El evento se dispara cuando se arrastra un campo al Marks card
 function updateDataAndRender(){
-  var ws=tableau.extensions.worksheetContent.worksheet;
+  if(!ws) return;
   ws.getSummaryDataReaderAsync()
     .then(function(reader){
-      return reader.getAllPagesAsync().then(function(dt){
-        reader.releaseAsync();
-        var val=processDataTable(dt);
-        curVal=val; draw(val);
-      });
-    })
-    .catch(function(e){
-      // fallback getSummaryDataAsync legacy
-      ws.getSummaryDataAsync({maxRows:1,ignoreSelection:true,includeAllColumns:true})
-        .then(function(dt){
-          var val=processDataTable(dt);
+      reader.getAllPagesAsync()
+        .then(function(dataTable){
+          reader.releaseAsync();
+          if(!dataTable||!dataTable.data||dataTable.data.length===0){
+            draw(null); return;
+          }
+          var row=dataTable.data[0], cols=dataTable.columns, val=null;
+          // Buscar primer columna float o int con valor numérico
+          for(var i=0;i<cols.length;i++){
+            if(cols[i].dataType==='float'||cols[i].dataType==='int'){
+              var raw=row[i].nativeValue!==undefined&&row[i].nativeValue!==null
+                ?row[i].nativeValue:row[i].value;
+              var v=parseFloat(String(raw).replace(/[,$\s%]/g,''));
+              if(!isNaN(v)&&isFinite(v)){val=v;break;}
+            }
+          }
+          // Fallback: cualquier valor numérico
+          if(val===null){
+            for(var j=0;j<row.length;j++){
+              var r2=row[j].nativeValue!==undefined&&row[j].nativeValue!==null
+                ?row[j].nativeValue:row[j].value;
+              var v2=parseFloat(String(r2).replace(/[,$\s%]/g,''));
+              if(!isNaN(v2)&&isFinite(v2)){val=v2;break;}
+            }
+          }
           curVal=val; draw(val);
         })
         .catch(function(){draw(null);});
-    });
+    })
+    .catch(function(){draw(null);});
 }
 
 window.addEventListener('resize',function(){draw(curVal);});
 
+// ── INIT ─────────────────────────────────────────────────────────
 draw(null);
-window.onload=tableau.extensions.initializeAsync({configure:openCfg})
+
+tableau.extensions.initializeAsync({configure:openCfg})
   .then(function(){
     try{var s=tableau.extensions.settings.get('cfg');if(s)C=Object.assign(C,JSON.parse(s));}catch(e){}
     draw(null);
+
+    // Obtener worksheet y registrar listener
+    ws = tableau.extensions.worksheetContent.worksheet;
+
+    // Escuchar cambios — se dispara cuando se arrastra campo al Marks card
+    ws.addEventListener(
+      tableau.TableauEventType.SummaryDataChanged,
+      updateDataAndRender
+    );
+
+    // Intentar leer datos iniciales
     updateDataAndRender();
-    try{
-      tableau.extensions.worksheetContent.worksheet
-        .addEventListener(tableau.TableauEventType.SummaryDataChanged,updateDataAndRender);
-    }catch(e){}
   })
   .catch(function(){draw(75);});
+
 })();
 </script>
 </body>

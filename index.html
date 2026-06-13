@@ -2,205 +2,56 @@
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>Gauge Chart</title>
+  <title>Test</title>
   <script src="https://public.tableau.com/javascripts/api/tableau.extensions.1.latest.min.js"></script>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:100%; height:100%; overflow:hidden; background:transparent; }
-    #content { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-    svg { display:block; overflow:visible; }
-    #panel { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:9; }
-    #panel.show { display:flex; }
-    .box { background:#fff; border-radius:8px; padding:22px; width:300px; font-family:Arial,sans-serif; box-shadow:0 4px 24px rgba(0,0,0,.3); }
-    .box h3 { font-size:13px; color:#0B2545; margin-bottom:12px; }
-    .r { display:flex; align-items:center; margin-bottom:7px; gap:6px; }
-    .r label { width:130px; font-size:11px; color:#555; flex-shrink:0; }
-    .r input[type=number],.r input[type=text] { flex:1; padding:4px 6px; border:1px solid #ccc; border-radius:3px; font-size:11px; }
-    .r input[type=color] { width:34px; height:24px; border:1px solid #ccc; border-radius:3px; padding:1px; cursor:pointer; }
-    .cv { width:62px!important; flex:none!important; }
-    .btns { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
-    .ok { background:#0B2545; color:#fff; border:none; border-radius:4px; padding:6px 16px; cursor:pointer; font-size:11px; }
-    .ok:hover { background:#13A8A8; }
-    .cn { background:#eee; color:#333; border:none; border-radius:4px; padding:6px 12px; cursor:pointer; font-size:11px; }
+    body { font-family: Arial; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
+    #val { font-size: 48px; font-weight: bold; color: #0B2545; }
+    #status { font-size: 14px; color: #666; margin-top: 10px; max-width: 400px; text-align: center; }
   </style>
 </head>
 <body>
-<div id="content">
-  <svg id="g" xmlns="http://www.w3.org/2000/svg"></svg>
-</div>
-<div id="panel">
-  <div class="box">
-    <h3>⚙ Configurar Gauge</h3>
-    <div class="r"><label>Mínimo</label><input type="number" id="mn" value="0"/></div>
-    <div class="r"><label>Máx Verde</label><input type="number" id="s1" value="33"/></div>
-    <div class="r"><label>Máx Amarillo</label><input type="number" id="s2" value="67"/></div>
-    <div class="r"><label>Máximo total</label><input type="number" id="mx" value="100"/></div>
-    <div class="r"><label>Color Verde</label><input type="color" id="c1" value="#3e8e2a"/><input type="text" class="cv" id="c1t" value="#3e8e2a"/></div>
-    <div class="r"><label>Color Amarillo</label><input type="color" id="c2" value="#f2e52c"/><input type="text" class="cv" id="c2t" value="#f2e52c"/></div>
-    <div class="r"><label>Color Rojo</label><input type="color" id="c3" value="#ff0000"/><input type="text" class="cv" id="c3t" value="#ff0000"/></div>
-    <div class="r"><label>Sufijo (ej: min.)</label><input type="text" id="sx" value=" min."/></div>
-    <div class="r"><label>Decimales</label><input type="number" id="dc" value="0" min="0" max="3"/></div>
-    <div class="btns">
-      <button class="cn" id="bcn">Cancelar</button>
-      <button class="ok" id="bok">Guardar</button>
-    </div>
-  </div>
-</div>
+  <div id="val">--</div>
+  <div id="status">Iniciando...</div>
 <script>
-'use strict';
-(function(){
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setVal(v) { document.getElementById('val').textContent = v !== null ? v : '--'; }
 
-var C = {mn:0,s1:33,s2:67,mx:100,c1:'#3e8e2a',c2:'#f2e52c',c3:'#ff0000',sx:' min.',dc:0};
-var curVal = null;
-var ws = null;
+tableau.extensions.initializeAsync()
+  .then(function() {
+    setStatus('Init OK. Leyendo datos...');
+    var ws = tableau.extensions.worksheetContent.worksheet;
+    setStatus('Worksheet: ' + ws.name + '. Intentando leer...');
 
-function rad(d){ return d*Math.PI/180; }
-function pt(a,r){ return [+(r*Math.cos(rad(a))).toFixed(3),+(r*Math.sin(rad(a))).toFixed(3)]; }
-function v2a(v){ return -180+Math.max(0,Math.min(1,(v-C.mn)/(C.mx-C.mn)))*180; }
-function arcPath(r,a1,a2){ var s=pt(a1,r),e=pt(a2,r),lg=(a2-a1)>180?1:0; return 'M'+s[0]+' '+s[1]+' A'+r+' '+r+' 0 '+lg+' 1 '+e[0]+' '+e[1]; }
+    ws.addEventListener(tableau.TableauEventType.SummaryDataChanged, function() {
+      setStatus('SummaryDataChanged! Leyendo...');
+      readData(ws);
+    });
 
-function draw(val){
-  var sz={w:window.innerWidth,h:window.innerHeight};
-  var OR=Math.min(sz.w*0.38,sz.h*0.62),SW=OR*0.28;
-  var IR=OR-SW/2,ER=OR+SW/2;
-  var aL=-180,a1=v2a(C.s1),a2=v2a(C.s2),aR=0;
-  var pad=SW*0.6+OR*0.28,scoreH=OR*0.22;
-  var svg=document.getElementById('g');
-  svg.setAttribute('viewBox',[-(OR+pad),-(OR+SW/2+pad),(OR+pad)*2,OR+SW/2+pad+scoreH+4].join(' '));
-  svg.setAttribute('width',sz.w); svg.setAttribute('height',sz.h);
-  var h='';
-  h+='<path d="'+arcPath(OR,aL,a1)+'" fill="none" stroke="'+C.c1+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  if(a2-a1>0.3) h+='<path d="'+arcPath(OR,a1,a2)+'" fill="none" stroke="'+C.c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  if(aR-a2>0.3) h+='<path d="'+arcPath(OR,a2,aR)+'" fill="none" stroke="'+C.c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  [a1,a2].forEach(function(a){
-    var pI=pt(a,IR),pE=pt(a,ER),pT=pt(a,ER+SW*0.4);
-    h+='<line x1="'+pI[0]+'" y1="'+pI[1]+'" x2="'+pE[0]+'" y2="'+pE[1]+'" stroke="white" stroke-width="'+SW*0.09+'"/>';
-    h+='<line x1="'+pE[0]+'" y1="'+pE[1]+'" x2="'+pT[0]+'" y2="'+pT[1]+'" stroke="#333" stroke-width="'+SW*0.07+'"/>';
-  });
-  [{v:C.mn,a:aL},{v:C.s1,a:a1},{v:C.s2,a:a2},{v:C.mx,a:aR}].forEach(function(o){
-    var t1=pt(o.a,ER+SW*0.05),t2=pt(o.a,ER+SW*0.4),tl=pt(o.a,ER+SW*0.75);
-    h+='<line x1="'+t1[0]+'" y1="'+t1[1]+'" x2="'+t2[0]+'" y2="'+t2[1]+'" stroke="#555" stroke-width="'+SW*0.06+'"/>';
-    h+='<text x="'+tl[0]+'" y="'+tl[1]+'" font-family="Arial,sans-serif" font-size="'+(OR*0.115)+'" fill="#444" text-anchor="middle" dominant-baseline="central">'+((o.v%1===0)?String(o.v):o.v.toFixed(1))+'</text>';
-  });
-  h+='<line x1="'+(-(OR+SW*0.1))+'" y1="0" x2="'+(OR+SW*0.1)+'" y2="0" stroke="#ddd" stroke-width="'+(SW*0.04)+'"/>';
-  var dv=(val!==null&&!isNaN(val))?val:C.mn,na=v2a(dv),tip=pt(na,OR-SW*0.1),bw=SW*0.22;
-  h+='<polygon points="'+tip[0]+','+tip[1]+' '+pt(na+90,bw)[0]+','+pt(na+90,bw)[1]+' '+pt(na-90,bw)[0]+','+pt(na-90,bw)[1]+'" fill="#111"/>';
-  h+='<circle cx="0" cy="0" r="'+(SW*0.32)+'" fill="#111"/><circle cx="0" cy="0" r="'+(SW*0.16)+'" fill="white"/>';
-  var label=(val!==null&&!isNaN(val))?parseFloat(val).toFixed(C.dc)+C.sx:'-- '+C.sx.trim();
-  h+='<text x="0" y="'+scoreH+'" font-family="Arial,sans-serif" font-size="'+(OR*0.17)+'" font-weight="bold" fill="#222" text-anchor="middle">'+label+'</text>';
-  svg.innerHTML=h;
-}
-
-['c1','c2','c3'].forEach(function(id){
-  var pk=document.getElementById(id),tx=document.getElementById(id+'t');
-  pk.addEventListener('input',function(){tx.value=pk.value;});
-  tx.addEventListener('input',function(){if(/^#[0-9a-fA-F]{6}$/.test(tx.value))pk.value=tx.value;});
-});
-function openCfg(){
-  document.getElementById('mn').value=C.mn; document.getElementById('s1').value=C.s1;
-  document.getElementById('s2').value=C.s2; document.getElementById('mx').value=C.mx;
-  ['c1','c2','c3'].forEach(function(id){document.getElementById(id).value=C[id];document.getElementById(id+'t').value=C[id];});
-  document.getElementById('sx').value=C.sx; document.getElementById('dc').value=C.dc;
-  document.getElementById('panel').classList.add('show');
-}
-document.getElementById('bcn').addEventListener('click',function(){document.getElementById('panel').classList.remove('show');});
-document.getElementById('bok').addEventListener('click',function(){
-  C.mn=parseFloat(document.getElementById('mn').value)||0;
-  C.s1=parseFloat(document.getElementById('s1').value)||33;
-  C.s2=parseFloat(document.getElementById('s2').value)||67;
-  C.mx=parseFloat(document.getElementById('mx').value)||100;
-  ['c1','c2','c3'].forEach(function(id){C[id]=document.getElementById(id+'t').value;});
-  C.sx=document.getElementById('sx').value;
-  C.dc=parseInt(document.getElementById('dc').value)||0;
-  try{tableau.extensions.settings.set('cfg',JSON.stringify(C));tableau.extensions.settings.saveAsync();}catch(e){}
-  document.getElementById('panel').classList.remove('show');
-  draw(curVal);
-});
-
-function extractVal(dataTable){
-  if(!dataTable||!dataTable.data||dataTable.data.length===0) return null;
-  var row=dataTable.data[0], cols=dataTable.columns;
-  for(var i=0;i<cols.length;i++){
-    if(cols[i].dataType==='float'||cols[i].dataType==='int'){
-      var raw=(row[i].nativeValue!==undefined&&row[i].nativeValue!==null)?row[i].nativeValue:row[i].value;
-      var v=parseFloat(String(raw).replace(/[,$\s%]/g,''));
-      if(!isNaN(v)&&isFinite(v)) return v;
-    }
-  }
-  for(var j=0;j<row.length;j++){
-    var raw2=(row[j].nativeValue!==undefined&&row[j].nativeValue!==null)?row[j].nativeValue:row[j].value;
-    var v2=parseFloat(String(raw2).replace(/[,$\s%]/g,''));
-    if(!isNaN(v2)&&isFinite(v2)) return v2;
-  }
-  return null;
-}
-
-async function updateDataAndRender(){
-  if(!ws) return;
-  var val = null;
-
-  try {
-    // Obtener fieldName del encoding 'value'
-    var visualSpec = await ws.getVisualSpecificationAsync();
-    var marksCard = visualSpec.marksSpecifications[visualSpec.activeMarksSpecificationIndex];
-    var fieldName = null;
-    var fieldAgg = null;
-
-    for(var i=0; i<marksCard.encodings.length; i++){
-      var enc = marksCard.encodings[i];
-      if(enc.id === 'value' && enc.field){
-        fieldName = enc.field.name;
-        fieldAgg = enc.field.aggregation; // SUM, AVG, etc
-        break;
-      }
-    }
-
-    if(!fieldName) { draw(null); return; }
-
-    // Leer datos con getSummaryDataReaderAsync
-    // El truco: pasar columnas específicas para forzar que devuelva datos
-    var reader = await ws.getSummaryDataReaderAsync(
-      undefined,
-      { columnsToInclude: [fieldName], ignoreSelection: false }
-    );
-    var dt = await reader.getAllPagesAsync();
-    await reader.releaseAsync();
-    val = extractVal(dt);
-
-    // Si no hay datos, intentar sin filtro de columnas
-    if(val === null){
-      var reader2 = await ws.getSummaryDataReaderAsync();
-      var dt2 = await reader2.getAllPagesAsync();
-      await reader2.releaseAsync();
-      val = extractVal(dt2);
-    }
-
-  } catch(e) {
-    // Fallback: getSummaryDataAsync legacy
-    try {
-      var dt3 = await ws.getSummaryDataAsync({maxRows:1, ignoreSelection:true, includeAllColumns:true});
-      val = extractVal(dt3);
-    } catch(e2) {}
-  }
-
-  curVal = val;
-  draw(val);
-}
-
-window.addEventListener('resize',function(){draw(curVal);});
-draw(null);
-
-tableau.extensions.initializeAsync({configure:openCfg})
-  .then(function(){
-    try{var s=tableau.extensions.settings.get('cfg');if(s)C=Object.assign(C,JSON.parse(s));}catch(e){}
-    draw(null);
-    ws = tableau.extensions.worksheetContent.worksheet;
-    ws.addEventListener(tableau.TableauEventType.SummaryDataChanged, updateDataAndRender);
-    updateDataAndRender();
+    readData(ws);
   })
-  .catch(function(){draw(75);});
+  .catch(function(e) { setStatus('Init ERROR: ' + e); });
 
-})();
+function readData(ws) {
+  ws.getSummaryDataReaderAsync()
+    .then(function(reader) {
+      return reader.getAllPagesAsync().then(function(dt) {
+        reader.releaseAsync();
+        setStatus('Rows: ' + dt.data.length + ' Cols: ' + dt.columns.length + ' | ' + dt.columns.map(function(c){return c.fieldName+':'+c.dataType;}).join(', '));
+        if (dt.data.length > 0) {
+          var row = dt.data[0];
+          for (var i = 0; i < row.length; i++) {
+            var v = parseFloat(row[i].nativeValue !== undefined ? row[i].nativeValue : row[i].value);
+            if (!isNaN(v) && isFinite(v)) { setVal(v); return; }
+          }
+          setVal(null);
+        } else {
+          setVal(null);
+        }
+      });
+    })
+    .catch(function(e) { setStatus('ERROR getSummaryDataReader: ' + e); setVal(null); });
+}
 </script>
 </body>
 </html>

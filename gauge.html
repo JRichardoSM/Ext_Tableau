@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Gauge Telasist</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  svg{display:block}
+</style>
+</head>
+<body>
+<svg id="g" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+// Lee parámetros de la URL
+// Uso: gauge.html?val=78&min=30&max=120&s1=60&s2=90&suffix=min.&dec=0&title=Tiempo de Arribo
+function getParam(k, def){
+  var p = new URLSearchParams(window.location.search);
+  return p.has(k) ? p.get(k) : def;
+}
+
+var val    = parseFloat(getParam('val',   '75'));
+var min    = parseFloat(getParam('min',   '0'));
+var max    = parseFloat(getParam('max',   '100'));
+var s1     = parseFloat(getParam('s1',    '33'));
+var s2     = parseFloat(getParam('s2',    '67'));
+var suffix = getParam('suffix', ' min.');
+var dec    = parseInt(getParam('dec',    '0'));
+var title  = getParam('title',  '');
+var c1     = getParam('c1',     '#3e8e2a');
+var c2     = getParam('c2',     '#f2e52c');
+var c3     = getParam('c3',     '#ff0000');
+
+// Dimensiones responsivas
+var W = window.innerWidth;
+var H = window.innerHeight;
+var R = Math.min(W * 0.38, H * 0.55);
+var SW = R * 0.30;
+var OR = R;
+var IR = OR - SW;
+
+var svg = document.getElementById('g');
+svg.setAttribute('width', W);
+svg.setAttribute('height', H);
+svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+var cx = W / 2;
+var cy = H * 0.52;
+
+function rad(d){ return d * Math.PI / 180; }
+function px(angle, r){ return cx + r * Math.cos(rad(angle)); }
+function py(angle, r){ return cy + r * Math.sin(rad(angle)); }
+
+// Angulo: 180=izq(min), 0=der(max), arco SUPERIOR via angulos negativos
+// min=-180, max=0 → arco pasa por -90 (arriba)
+function v2a(v){
+  var pct = Math.max(0, Math.min(1, (v - min) / (max - min)));
+  return -180 + pct * 180;
+}
+
+function arcPath(r, a1, a2){
+  var x1=px(a1,r), y1=py(a1,r), x2=px(a2,r), y2=py(a2,r);
+  var lg = (a2 - a1) > 180 ? 1 : 0;
+  return 'M'+x1.toFixed(2)+','+y1.toFixed(2)+' A'+r+','+r+' 0 '+lg+',1 '+x2.toFixed(2)+','+y2.toFixed(2);
+}
+
+var aL = -180;
+var a1 = v2a(s1);
+var a2 = v2a(s2);
+var aR = 0;
+
+var h = '';
+
+// Arcos de color
+h += '<path d="'+arcPath(OR+SW/2, aL, a1)+'" fill="none" stroke="'+c1+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+if(a2 - a1 > 0.3) h += '<path d="'+arcPath(OR+SW/2, a1, a2)+'" fill="none" stroke="'+c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+if(aR - a2 > 0.3) h += '<path d="'+arcPath(OR+SW/2, a2, aR)+'" fill="none" stroke="'+c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
+
+// Separadores blancos entre segmentos
+[aL, a1, a2, aR].forEach(function(a){
+  var x1=px(a, IR), y1=py(a, IR), x2=px(a, OR+SW), y2=py(a, OR+SW);
+  h += '<line x1="'+x1.toFixed(2)+'" y1="'+y1.toFixed(2)+'" x2="'+x2.toFixed(2)+'" y2="'+y2.toFixed(2)+'" stroke="white" stroke-width="'+Math.max(2,SW*0.06)+'"/>';
+});
+
+// Ticks y etiquetas en umbrales
+[{v:min,a:aL},{v:s1,a:a1},{v:s2,a:a2},{v:max,a:aR}].forEach(function(o){
+  var r1 = OR+SW+R*0.03, r2 = OR+SW+R*0.10, r3 = OR+SW+R*0.18;
+  var tx1=px(o.a,r1),ty1=py(o.a,r1), tx2=px(o.a,r2),ty2=py(o.a,r2);
+  var lx=px(o.a,r3), ly=py(o.a,r3);
+  h += '<line x1="'+tx1.toFixed(2)+'" y1="'+ty1.toFixed(2)+'" x2="'+tx2.toFixed(2)+'" y2="'+ty2.toFixed(2)+'" stroke="#666" stroke-width="1.5"/>';
+  var lbl = (o.v % 1 === 0) ? String(o.v) : o.v.toFixed(1);
+  lbl += ' ' + suffix.trim();
+  h += '<text x="'+lx.toFixed(2)+'" y="'+ly.toFixed(2)+'" font-family="Arial,sans-serif" font-size="'+(R*0.11)+'" fill="#555" text-anchor="middle" dominant-baseline="central">'+lbl+'</text>';
+});
+
+// Línea base
+h += '<line x1="'+(cx-(OR+SW)).toFixed(2)+'" y1="'+cy+'" x2="'+(cx+(OR+SW)).toFixed(2)+'" y2="'+cy+'" stroke="#ddd" stroke-width="1"/>';
+
+// Aguja
+var na = v2a(val);
+var needleLen = OR + SW * 0.1;
+var tipX = px(na, needleLen), tipY = py(na, needleLen);
+var b1X = px(na+90, SW*0.12), b1Y = py(na+90, SW*0.12);
+var b2X = px(na-90, SW*0.12), b2Y = py(na-90, SW*0.12);
+h += '<polygon points="'+tipX.toFixed(2)+','+tipY.toFixed(2)+' '+b1X.toFixed(2)+','+b1Y.toFixed(2)+' '+b2X.toFixed(2)+','+b2Y.toFixed(2)+'" fill="#111"/>';
+h += '<circle cx="'+cx+'" cy="'+cy+'" r="'+(SW*0.35)+'" fill="#111"/>';
+h += '<circle cx="'+cx+'" cy="'+cy+'" r="'+(SW*0.18)+'" fill="white"/>';
+
+// Score
+var scoreY = cy + R * 0.30;
+var displayVal = (!isNaN(val) ? parseFloat(val).toFixed(dec) : '--') + ' ' + suffix.trim();
+h += '<text x="'+cx+'" y="'+scoreY+'" font-family="Arial,sans-serif" font-size="'+(R*0.20)+'" font-weight="bold" fill="#222" text-anchor="middle">'+displayVal+'</text>';
+
+// Título
+if(title){
+  h += '<text x="'+cx+'" y="'+(cy - OR - SW - R*0.28)+'" font-family="Arial,sans-serif" font-size="'+(R*0.14)+'" font-weight="500" fill="#333" text-anchor="middle">'+title+'</text>';
+}
+
+svg.innerHTML = h;
+</script>
+</body>
+</html>

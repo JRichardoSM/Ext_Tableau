@@ -2,39 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Gauge Chart</title>
-  <!--
-    Tableau Extensions API — librería oficial latest
-    https://tableau.github.io/extensions-api
-  -->
   <script src="https://public.tableau.com/javascripts/api/tableau.extensions.1.latest.min.js"></script>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    html,body{width:100%;height:100%;overflow:hidden;background:transparent}
-    #wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-    svg{display:block;overflow:visible}
-    /* Config panel */
-    #panel{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9}
-    #panel.show{display:flex}
-    .box{background:#fff;border-radius:8px;padding:22px;width:300px;font-family:Arial,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,.3)}
-    .box h3{font-size:13px;color:#0B2545;margin-bottom:12px}
-    .r{display:flex;align-items:center;margin-bottom:7px;gap:6px}
-    .r label{width:130px;font-size:11px;color:#555;flex-shrink:0}
-    .r input[type=number],.r input[type=text]{flex:1;padding:4px 6px;border:1px solid #ccc;border-radius:3px;font-size:11px}
-    .r input[type=color]{width:34px;height:24px;border:1px solid #ccc;border-radius:3px;padding:1px;cursor:pointer}
-    .cv{width:62px!important;flex:none!important}
-    .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
-    .ok{background:#0B2545;color:#fff;border:none;border-radius:4px;padding:6px 16px;cursor:pointer;font-size:11px}
-    .ok:hover{background:#13A8A8}
-    .cn{background:#eee;color:#333;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:11px}
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; overflow:hidden; background:transparent; }
+    #wrap { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+    svg { display:block; overflow:visible; }
+    #panel { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:9; }
+    #panel.show { display:flex; }
+    .box { background:#fff; border-radius:8px; padding:22px; width:300px; font-family:Arial,sans-serif; box-shadow:0 4px 24px rgba(0,0,0,.3); }
+    .box h3 { font-size:13px; color:#0B2545; margin-bottom:12px; }
+    .r { display:flex; align-items:center; margin-bottom:7px; gap:6px; }
+    .r label { width:130px; font-size:11px; color:#555; flex-shrink:0; }
+    .r input[type=number], .r input[type=text] { flex:1; padding:4px 6px; border:1px solid #ccc; border-radius:3px; font-size:11px; }
+    .r input[type=color] { width:34px; height:24px; border:1px solid #ccc; border-radius:3px; padding:1px; cursor:pointer; }
+    .cv { width:62px!important; flex:none!important; }
+    .btns { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+    .ok { background:#0B2545; color:#fff; border:none; border-radius:4px; padding:6px 16px; cursor:pointer; font-size:11px; }
+    .ok:hover { background:#13A8A8; }
+    .cn { background:#eee; color:#333; border:none; border-radius:4px; padding:6px 12px; cursor:pointer; font-size:11px; }
   </style>
 </head>
 <body>
 <div id="wrap">
   <svg id="g" viewBox="-120 -108 240 145" width="100%" height="100%"></svg>
 </div>
-
 <div id="panel">
   <div class="box">
     <h3>⚙ Configurar Gauge</h3>
@@ -53,88 +46,87 @@
     </div>
   </div>
 </div>
-
 <script>
-// ── CONFIG ───────────────────────────────────────────────────────
-var C = {mn:0,s1:33,s2:67,mx:100,c1:'#3e8e2a',c2:'#f2e52c',c3:'#ff0000',sx:' min.',dc:0};
+var C = {mn:0, s1:33, s2:67, mx:100, c1:'#3e8e2a', c2:'#f2e52c', c3:'#ff0000', sx:' min.', dc:0};
 var curVal = null;
 
 // ── GEOMETRÍA ────────────────────────────────────────────────────
 function r2(a){ return (a-180)*Math.PI/180; }
 function pt(a,r){ return [+(r*Math.cos(r2(a))).toFixed(3), +(r*Math.sin(r2(a))).toFixed(3)]; }
 function arcD(r,a1,a2){
-  var s=pt(a1,r),e=pt(a2,r),lg=(a2-a1)>180?1:0;
+  var s=pt(a1,r), e=pt(a2,r), lg=(a2-a1)>180?1:0;
   return 'M'+s[0]+' '+s[1]+' A'+r+' '+r+' 0 '+lg+' 1 '+e[0]+' '+e[1];
 }
-function v2a(v){ return 180-Math.max(0,Math.min(1,(v-C.mn)/(C.mx-C.mn)))*180; }
+function v2a(v){ return 180 - Math.max(0,Math.min(1,(v-C.mn)/(C.mx-C.mn)))*180; }
 
-// ── DRAW ─────────────────────────────────────────────────────────
+// ── DRAW — siempre dibuja algo ───────────────────────────────────
 function draw(val){
-  var svg=document.getElementById('g');
-  var OR=95,SW=30;
-  var a0=180,a1=v2a(C.s1),a2=v2a(C.s2),a3=0;
+  var OR=95, SW=30;
+  var a0=180, a1=v2a(C.s1), a2=v2a(C.s2), a3=0;
   var h='';
-  // Arcos de color
+
+  // Arcos
   h+='<path d="'+arcD(OR,a0,a1)+'" fill="none" stroke="'+C.c1+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
   if(a1>a2+0.3) h+='<path d="'+arcD(OR,a1,a2)+'" fill="none" stroke="'+C.c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
   if(a2>a3+0.3) h+='<path d="'+arcD(OR,a2,a3)+'" fill="none" stroke="'+C.c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
-  // Separadores blancos
+
+  // Separadores
   [a0,a1,a2,a3].forEach(function(a){
-    var p1=pt(a,OR-SW/2-1),p2=pt(a,OR+SW/2+1);
+    var p1=pt(a,OR-SW/2-1), p2=pt(a,OR+SW/2+1);
     h+='<line x1="'+p1[0]+'" y1="'+p1[1]+'" x2="'+p2[0]+'" y2="'+p2[1]+'" stroke="white" stroke-width="2"/>';
   });
-  // Ticks y etiquetas
+
+  // Ticks
   [C.mn,C.s1,C.s2,C.mx].forEach(function(v){
-    var a=v2a(v),t1=pt(a,OR+3),t2=pt(a,OR+12),tl=pt(a,OR+23);
+    var a=v2a(v), t1=pt(a,OR+3), t2=pt(a,OR+12), tl=pt(a,OR+23);
     h+='<line x1="'+t1[0]+'" y1="'+t1[1]+'" x2="'+t2[0]+'" y2="'+t2[1]+'" stroke="#555" stroke-width="1.5"/>';
     h+='<text x="'+tl[0]+'" y="'+tl[1]+'" font-family="Arial,sans-serif" font-size="10" fill="#444" text-anchor="middle" dominant-baseline="central">'+(v%1===0?v:v.toFixed(1))+'</text>';
   });
-  // Línea base
+
+  // Base
   h+='<line x1="-'+(OR+1)+'" y1="0.5" x2="'+(OR+1)+'" y2="0.5" stroke="#ccc" stroke-width="1"/>';
-  // Aguja y score
-  if(val!==null && !isNaN(val)){
-    var na=v2a(val),np=pt(na,OR-5),b1=pt(na+90,7),b2=pt(na-90,7);
-    h+='<polygon points="'+np[0]+','+np[1]+' '+b1[0]+','+b1[1]+' '+b2[0]+','+b2[1]+'" fill="#111"/>';
-    h+='<circle cx="0" cy="0" r="9" fill="#111"/>';
-    h+='<circle cx="0" cy="0" r="4.5" fill="white"/>';
-    h+='<text x="0" y="30" font-family="Arial,sans-serif" font-size="15" font-weight="bold" fill="#222" text-anchor="middle">'+parseFloat(val).toFixed(C.dc)+C.sx+'</text>';
-  } else {
-    h+='<circle cx="0" cy="0" r="9" fill="#bbb"/>';
-    h+='<circle cx="0" cy="0" r="4.5" fill="white"/>';
-    h+='<text x="0" y="30" font-family="Arial,sans-serif" font-size="11" fill="#aaa" text-anchor="middle">Sin datos</text>';
-  }
-  svg.innerHTML=h;
+
+  // Aguja — si val es null, muestra en posición mínima
+  var displayVal = (val!==null && !isNaN(val)) ? val : C.mn;
+  var na=v2a(displayVal), np=pt(na,OR-5), b1=pt(na+90,7), b2=pt(na-90,7);
+  h+='<polygon points="'+np[0]+','+np[1]+' '+b1[0]+','+b1[1]+' '+b2[0]+','+b2[1]+'" fill="#111"/>';
+  h+='<circle cx="0" cy="0" r="9" fill="#111"/>';
+  h+='<circle cx="0" cy="0" r="4.5" fill="white"/>';
+
+  // Score
+  var label = (val!==null && !isNaN(val)) ? parseFloat(val).toFixed(C.dc)+C.sx : '-- '+C.sx;
+  h+='<text x="0" y="30" font-family="Arial,sans-serif" font-size="15" font-weight="bold" fill="#222" text-anchor="middle">'+label+'</text>';
+
+  document.getElementById('g').innerHTML = h;
 }
 
 // ── CONFIG PANEL ─────────────────────────────────────────────────
 ['c1','c2','c3'].forEach(function(id){
-  var pk=document.getElementById(id),tx=document.getElementById(id+'t');
-  pk.addEventListener('input',function(){tx.value=pk.value;});
-  tx.addEventListener('input',function(){if(/^#[0-9a-fA-F]{6}$/.test(tx.value))pk.value=tx.value;});
+  var pk=document.getElementById(id), tx=document.getElementById(id+'t');
+  pk.addEventListener('input',function(){ tx.value=pk.value; });
+  tx.addEventListener('input',function(){ if(/^#[0-9a-fA-F]{6}$/.test(tx.value)) pk.value=tx.value; });
 });
+
 function openCfg(){
-  document.getElementById('mn').value=C.mn;
-  document.getElementById('s1').value=C.s1;
-  document.getElementById('s2').value=C.s2;
-  document.getElementById('mx').value=C.mx;
+  document.getElementById('mn').value=C.mn; document.getElementById('s1').value=C.s1;
+  document.getElementById('s2').value=C.s2; document.getElementById('mx').value=C.mx;
   ['c1','c2','c3'].forEach(function(id){
-    document.getElementById(id).value=C[id];
-    document.getElementById(id+'t').value=C[id];
+    document.getElementById(id).value=C[id]; document.getElementById(id+'t').value=C[id];
   });
-  document.getElementById('sx').value=C.sx;
-  document.getElementById('dc').value=C.dc;
+  document.getElementById('sx').value=C.sx; document.getElementById('dc').value=C.dc;
   document.getElementById('panel').classList.add('show');
 }
-document.getElementById('bcn').addEventListener('click',function(){document.getElementById('panel').classList.remove('show');});
+
+document.getElementById('bcn').addEventListener('click',function(){ document.getElementById('panel').classList.remove('show'); });
 document.getElementById('bok').addEventListener('click',function(){
   C.mn=parseFloat(document.getElementById('mn').value)||0;
   C.s1=parseFloat(document.getElementById('s1').value)||33;
   C.s2=parseFloat(document.getElementById('s2').value)||67;
   C.mx=parseFloat(document.getElementById('mx').value)||100;
-  ['c1','c2','c3'].forEach(function(id){C[id]=document.getElementById(id+'t').value;});
+  ['c1','c2','c3'].forEach(function(id){ C[id]=document.getElementById(id+'t').value; });
   C.sx=document.getElementById('sx').value;
   C.dc=parseInt(document.getElementById('dc').value)||0;
-  try{tableau.extensions.settings.set('cfg',JSON.stringify(C));tableau.extensions.settings.saveAsync();}catch(e){}
+  try{ tableau.extensions.settings.set('cfg',JSON.stringify(C)); tableau.extensions.settings.saveAsync(); }catch(e){}
   document.getElementById('panel').classList.remove('show');
   draw(curVal);
 });
@@ -143,73 +135,41 @@ document.getElementById('bok').addEventListener('click',function(){
 function getData(){
   try{
     var ws = tableau.extensions.worksheetContent.worksheet;
-    // Usar getEncodingAsync para leer el campo mapeado al encoding 'measure'
-    ws.getEncodingsAsync().then(function(encodings){
-      var measureEncoding = null;
-      for(var i=0;i<encodings.length;i++){
-        if(encodings[i].id === 'measure' && encodings[i].field){
-          measureEncoding = encodings[i];
-          break;
+    ws.getSummaryDataAsync({ maxRows:1, ignoreSelection:true, includeAllColumns:true })
+      .then(function(dt){
+        if(!dt || !dt.data || dt.data.length===0){ draw(null); return; }
+        var row=dt.data[0], val=null;
+        for(var i=0; i<row.length; i++){
+          var raw = (row[i].nativeValue !== undefined && row[i].nativeValue !== null) ? row[i].nativeValue : row[i].value;
+          var v = parseFloat(raw);
+          if(!isNaN(v) && isFinite(v)){ val=v; break; }
         }
-      }
-      if(!measureEncoding){
-        // Sin campo asignado aún — mostrar sin datos
-        draw(null);
-        return;
-      }
-      // Leer datos summary
-      ws.getSummaryDataAsync({maxRows:1, ignoreSelection:true, includeAllColumns:true})
-        .then(function(dt){
-          if(!dt||!dt.data||dt.data.length===0){draw(null);return;}
-          var row=dt.data[0], cols=dt.columns, val=null;
-          var fieldName = measureEncoding.field.name;
-          // Buscar la columna que corresponde al campo del encoding
-          for(var i=0;i<cols.length;i++){
-            if(cols[i].fieldName === fieldName){
-              var v=parseFloat(row[i].nativeValue!==undefined?row[i].nativeValue:row[i].value);
-              if(!isNaN(v)){val=v;break;}
-            }
-          }
-          // Fallback: primer valor numérico
-          if(val===null){
-            for(var j=0;j<row.length;j++){
-              var v2=parseFloat(row[j].nativeValue!==undefined?row[j].nativeValue:row[j].value);
-              if(!isNaN(v2)){val=v2;break;}
-            }
-          }
-          curVal=val;
-          draw(val);
-        })
-        .catch(function(e){console.warn('getSummaryData:',e);draw(null);});
-    }).catch(function(e){
-      console.warn('getEncodings:',e);
-      // Fallback directo sin encoding
-      ws.getSummaryDataAsync({maxRows:1,ignoreSelection:true,includeAllColumns:true})
-        .then(function(dt){
-          if(!dt||!dt.data||dt.data.length===0){draw(null);return;}
-          var row=dt.data[0];
-          for(var j=0;j<row.length;j++){
-            var v=parseFloat(row[j].nativeValue!==undefined?row[j].nativeValue:row[j].value);
-            if(!isNaN(v)){curVal=v;draw(v);return;}
-          }
-          draw(null);
-        }).catch(function(){draw(null);});
-    });
-  }catch(e){console.warn('getData:',e);draw(null);}
+        curVal = val;
+        draw(val);
+      })
+      .catch(function(){ draw(null); });
+  }catch(e){ draw(null); }
 }
 
 // ── INIT ─────────────────────────────────────────────────────────
-tableau.extensions.initializeAsync({configure:openCfg})
+// Dibujar INMEDIATAMENTE al cargar — antes de que Tableau responda
+draw(null);
+
+tableau.extensions.initializeAsync({ configure: openCfg })
   .then(function(){
-    try{var s=tableau.extensions.settings.get('cfg');if(s)C=Object.assign(C,JSON.parse(s));}catch(e){}
+    try{ var s=tableau.extensions.settings.get('cfg'); if(s) C=Object.assign(C,JSON.parse(s)); }catch(e){}
+    // Redibujar con config guardada
+    draw(null);
+    // Leer datos reales
     getData();
+    // Escuchar cambios
     try{
       tableau.extensions.worksheetContent.worksheet
-        .addEventListener(tableau.TableauEventType.SummaryDataChanged,getData);
-    }catch(e){console.warn('addEventListener:',e);}
+        .addEventListener(tableau.TableauEventType.SummaryDataChanged, getData);
+    }catch(e){}
   })
-  .catch(function(e){
-    console.warn('No Tableau context — modo demo');
+  .catch(function(){
+    // Fuera de Tableau — demo
     draw(75);
   });
 </script>

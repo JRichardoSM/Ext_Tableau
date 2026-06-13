@@ -47,6 +47,9 @@
   </div>
 </div>
 <script>
+(function(){
+'use strict';
+
 var C = {mn:0, s1:33, s2:67, mx:100, c1:'#3e8e2a', c2:'#f2e52c', c3:'#ff0000', sx:' min.', dc:0};
 var curVal = null;
 
@@ -74,19 +77,16 @@ function draw(val){
   svg.setAttribute('height', sz.h);
   var h = '';
 
-  // Arcos
   h+='<path d="'+arcPath(OR,aL,a1)+'" fill="none" stroke="'+C.c1+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
   if(a2-a1>0.3) h+='<path d="'+arcPath(OR,a1,a2)+'" fill="none" stroke="'+C.c2+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
   if(aR-a2>0.3) h+='<path d="'+arcPath(OR,a2,aR)+'" fill="none" stroke="'+C.c3+'" stroke-width="'+SW+'" stroke-linecap="butt"/>';
 
-  // Separadores: blanco dentro + negro fuera
   [a1, a2].forEach(function(a){
     var pI=pt(a,IR), pE=pt(a,ER), pT=pt(a,ER+SW*0.4);
     h+='<line x1="'+pI[0]+'" y1="'+pI[1]+'" x2="'+pE[0]+'" y2="'+pE[1]+'" stroke="white" stroke-width="'+SW*0.09+'"/>';
     h+='<line x1="'+pE[0]+'" y1="'+pE[1]+'" x2="'+pT[0]+'" y2="'+pT[1]+'" stroke="#333" stroke-width="'+SW*0.07+'"/>';
   });
 
-  // Ticks + etiquetas en 4 puntos
   [{v:C.mn,a:aL},{v:C.s1,a:a1},{v:C.s2,a:a2},{v:C.mx,a:aR}].forEach(function(o){
     var t1=pt(o.a,ER+SW*0.05), t2=pt(o.a,ER+SW*0.4), tl=pt(o.a,ER+SW*0.75);
     h+='<line x1="'+t1[0]+'" y1="'+t1[1]+'" x2="'+t2[0]+'" y2="'+t2[1]+'" stroke="#555" stroke-width="'+SW*0.06+'"/>';
@@ -94,10 +94,8 @@ function draw(val){
     h+='<text x="'+tl[0]+'" y="'+tl[1]+'" font-family="Arial,sans-serif" font-size="'+(OR*0.115)+'" fill="#444" text-anchor="middle" dominant-baseline="central">'+lbl+'</text>';
   });
 
-  // Base
   h+='<line x1="'+(-(OR+SW*0.1))+'" y1="0" x2="'+(OR+SW*0.1)+'" y2="0" stroke="#ddd" stroke-width="'+(SW*0.04)+'"/>';
 
-  // Aguja
   var dispVal=(val!==null&&!isNaN(val))?val:C.mn;
   var na=v2a(dispVal), tip=pt(na,OR-SW*0.1), bw=SW*0.22;
   var b1=pt(na+90,bw), b2=pt(na-90,bw);
@@ -105,14 +103,12 @@ function draw(val){
   h+='<circle cx="0" cy="0" r="'+(SW*0.32)+'" fill="#111"/>';
   h+='<circle cx="0" cy="0" r="'+(SW*0.16)+'" fill="white"/>';
 
-  // Score
   var label=(val!==null&&!isNaN(val))?parseFloat(val).toFixed(C.dc)+C.sx:'-- '+C.sx.trim();
   h+='<text x="0" y="'+scoreH+'" font-family="Arial,sans-serif" font-size="'+(OR*0.17)+'" font-weight="bold" fill="#222" text-anchor="middle">'+label+'</text>';
-
   svg.innerHTML = h;
 }
 
-// ── CONFIG PANEL ─────────────────────────────────────────────────
+// ── CONFIG ───────────────────────────────────────────────────────
 ['c1','c2','c3'].forEach(function(id){
   var pk=document.getElementById(id), tx=document.getElementById(id+'t');
   pk.addEventListener('input',function(){ tx.value=pk.value; });
@@ -141,98 +137,106 @@ document.getElementById('bok').addEventListener('click',function(){
   draw(curVal);
 });
 
-// ── LEER DATOS — método correcto para Viz Extensions ─────────────
-// Usa getVisualSpecificationAsync + getSummaryDataReaderAsync
-// según documentación oficial de Tableau Extensions API
-async function getData(){
-  try{
-    var ws = tableau.extensions.worksheetContent.worksheet;
+// ── LEER DATOS ───────────────────────────────────────────────────
+// Patrón exacto de la documentación oficial de Tableau Viz Extensions:
+// 1. getVisualSpecificationAsync() → obtener campos en encodings
+// 2. getSummaryDataReaderAsync() → obtener datos
+// Ref: https://tableau.github.io/extensions-api/docs/vizext/trex_viz_create/
+function updateDataAndRender(){
+  var ws = tableau.extensions.worksheetContent.worksheet;
 
-    // Paso 1: obtener el campo mapeado al encoding 'measure'
-    var fieldName = null;
-    try{
-      var visualSpec = await ws.getVisualSpecificationAsync();
-      var marksCard = visualSpec.marksSpecifications[visualSpec.activeMarksSpecificationIndex];
-      for(var i=0; i<marksCard.encodings.length; i++){
-        var enc = marksCard.encodings[i];
-        if(enc.id === 'measure' && enc.field){
-          fieldName = enc.field.name;
-          break;
-        }
+  // Paso 1: obtener todos los campos en todos los encodings del Marks card
+  ws.getVisualSpecificationAsync().then(function(visualSpec){
+    var marksCard = visualSpec.marksSpecifications[visualSpec.activeMarksSpecificationIndex];
+    
+    // Recopilar nombres de todos los campos mapeados (sin importar el encoding id)
+    var fieldNames = [];
+    for(var i=0; i<marksCard.encodings.length; i++){
+      var enc = marksCard.encodings[i];
+      if(enc.field){
+        fieldNames.push(enc.field.name);
       }
-    }catch(e){ /* continuar sin fieldName */ }
+    }
 
     // Paso 2: leer datos con getSummaryDataReaderAsync
-    var reader = await ws.getSummaryDataReaderAsync();
-    var dataTable = await reader.getAllPagesAsync();
-    await reader.releaseAsync();
-
-    if(!dataTable || !dataTable.data || dataTable.data.length === 0){
-      draw(null); return;
-    }
-
-    var row = dataTable.data[0];
-    var cols = dataTable.columns;
-    var val = null;
-
-    // Buscar por nombre del campo si lo tenemos
-    if(fieldName){
-      for(var j=0; j<cols.length; j++){
-        if(cols[j].fieldName === fieldName){
-          var v = parseFloat(row[j].nativeValue !== undefined ? row[j].nativeValue : row[j].value);
-          if(!isNaN(v) && isFinite(v)){ val = v; break; }
+    ws.getSummaryDataReaderAsync().then(function(reader){
+      reader.getAllPagesAsync().then(function(dataTable){
+        reader.releaseAsync();
+        
+        if(!dataTable || !dataTable.data || dataTable.data.length === 0){
+          draw(null); return;
         }
-      }
-    }
 
-    // Fallback: primer valor numérico
-    if(val === null){
-      for(var k=0; k<row.length; k++){
-        var raw = row[k].nativeValue !== undefined ? row[k].nativeValue : row[k].value;
-        var v2 = parseFloat(String(raw).replace(/[, ]/g,''));
-        if(!isNaN(v2) && isFinite(v2)){ val = v2; break; }
-      }
-    }
+        var row = dataTable.data[0];
+        var cols = dataTable.columns;
+        var val = null;
 
-    curVal = val;
-    draw(val);
-
-  }catch(e){
-    // Fallback a getSummaryDataAsync legacy
-    try{
-      var ws2 = tableau.extensions.worksheetContent.worksheet;
-      ws2.getSummaryDataAsync({maxRows:1, ignoreSelection:true, includeAllColumns:true})
-        .then(function(dt){
-          if(!dt||!dt.data||dt.data.length===0){ draw(null); return; }
-          var row=dt.data[0], val=null;
-          for(var i=0;i<row.length;i++){
-            var raw=row[i].nativeValue!==undefined?row[i].nativeValue:row[i].value;
-            var v=parseFloat(String(raw).replace(/[, ]/g,''));
-            if(!isNaN(v)&&isFinite(v)){val=v;break;}
+        // Buscar columna que coincida con algún campo del encoding
+        if(fieldNames.length > 0){
+          for(var j=0; j<cols.length; j++){
+            for(var k=0; k<fieldNames.length; k++){
+              if(cols[j].fieldName === fieldNames[k] || 
+                 cols[j].fieldName.indexOf(fieldNames[k]) >= 0){
+                var v = (row[j].nativeValue !== undefined && row[j].nativeValue !== null)
+                  ? parseFloat(row[j].nativeValue)
+                  : parseFloat(String(row[j].value).replace(/[,$\s]/g,''));
+                if(!isNaN(v) && isFinite(v)){ val = v; break; }
+              }
+            }
+            if(val !== null) break;
           }
-          curVal=val; draw(val);
-        }).catch(function(){ draw(null); });
-    }catch(e2){ draw(null); }
-  }
+        }
+
+        // Fallback: primer valor numérico de cualquier columna
+        if(val === null){
+          for(var m=0; m<row.length; m++){
+            var raw = (row[m].nativeValue !== undefined && row[m].nativeValue !== null)
+              ? row[m].nativeValue : row[m].value;
+            var v2 = parseFloat(String(raw).replace(/[,$\s]/g,''));
+            if(!isNaN(v2) && isFinite(v2)){ val = v2; break; }
+          }
+        }
+
+        curVal = val;
+        draw(val);
+
+      }).catch(function(){ draw(null); });
+    }).catch(function(){ draw(null); });
+
+  }).catch(function(){
+    // Si getVisualSpecificationAsync falla, intentar directo con el reader
+    ws.getSummaryDataReaderAsync().then(function(reader){
+      reader.getAllPagesAsync().then(function(dataTable){
+        reader.releaseAsync();
+        if(!dataTable||!dataTable.data||dataTable.data.length===0){ draw(null); return; }
+        var row=dataTable.data[0], val=null;
+        for(var i=0;i<row.length;i++){
+          var raw=(row[i].nativeValue!==undefined&&row[i].nativeValue!==null)?row[i].nativeValue:row[i].value;
+          var v=parseFloat(String(raw).replace(/[,$\s]/g,''));
+          if(!isNaN(v)&&isFinite(v)){val=v;break;}
+        }
+        curVal=val; draw(val);
+      }).catch(function(){ draw(null); });
+    }).catch(function(){ draw(null); });
+  });
 }
 
-// ── RESIZE ───────────────────────────────────────────────────────
 window.addEventListener('resize', function(){ draw(curVal); });
 
 // ── INIT ─────────────────────────────────────────────────────────
 draw(null);
 
-tableau.extensions.initializeAsync({configure: openCfg})
+window.onload = tableau.extensions.initializeAsync({configure: openCfg})
   .then(function(){
     try{ var s=tableau.extensions.settings.get('cfg'); if(s) C=Object.assign(C,JSON.parse(s)); }catch(e){}
     draw(null);
-    getData();
-    try{
-      tableau.extensions.worksheetContent.worksheet
-        .addEventListener(tableau.TableauEventType.SummaryDataChanged, getData);
-    }catch(e){}
+    updateDataAndRender();
+    tableau.extensions.worksheetContent.worksheet
+      .addEventListener(tableau.TableauEventType.SummaryDataChanged, updateDataAndRender);
   })
   .catch(function(){ draw(75); });
+
+})();
 </script>
 </body>
 </html>

@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
-  <worksheet-extension id="com.telasist.gauge.v1" extension-version="1.0.0" extension-mode="viz">
-    <default-locale>es_MX</default-locale>
+  <worksheet-extension id="com.telasist.gauge.v2" extension-version="0.1.0">
+    <default-locale>en_US</default-locale>
     <name resource-id="name"/>
-    <description>Gauge Chart para Telasist. Compatible con Tableau Desktop y Tableau Cloud.</description>
+    <description>Gauge Chart - Telasist</description>
     <author name="Telasist BI" email="jadid.sanchez@telasist.com" organization="Telasist" website="https://telasist.com"/>
-    <min-api-version>1.11</min-api-version>
+    <min-api-version>1.1</min-api-version>
     <source-location>
       <url>https://jrichardosm.github.io/Ext_Tableau/</url>
     </source-location>
-    <icon>iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4wEQECsVOcGVMQAAAGlJREFUaN7t0EERACAIBND9l9YBDnCABuziXSdJ27U9kiQJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMAAP//AwBQSwECLQAUAAYACAAAACEAWvRelAAAABQAAAAIAAAAAAAAAAAAIAAAAAAAAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAIAAgBxAAAAPgAAAAAA</icon>
-    <context-menu>
-      <configure-context-menu-item></configure-context-menu-item>
-    </context-menu>
-    <encoding id="smm-gauge+measures">
+    <icon/>
+    <permissions>
+      <permission>full data</permission>
+    </permissions>
+    <encoding id="measure">
       <display-name>Measure</display-name>
       <data-spec>
         <data-type>numeric</data-type>
@@ -26,8 +26,8 @@
   </worksheet-extension>
   <resources>
     <resource id="name">
-      <text locale="es_MX">Gauge Chart</text>
       <text locale="en_US">Gauge Chart</text>
+      <text locale="es_MX">Gauge Chart</text>
     </resource>
   </resources>
 </manifest>

@@ -1,30 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
-  <worksheet-extension id="com.telasist.gauge.v4" extension-version="0.1.0">
+  <worksheet-extension id="com.telasist.gauge.v5" extension-version="1.0.0">
     <default-locale>en_US</default-locale>
     <name resource-id="name"/>
     <description>Gauge Chart - Telasist</description>
     <author name="Telasist BI" email="jadid.sanchez@telasist.com" organization="Telasist" website="https://telasist.com"/>
-    <min-api-version>1.1</min-api-version>
+    <min-api-version>1.11</min-api-version>
     <source-location>
       <url>https://jrichardosm.github.io/Ext_Tableau/</url>
     </source-location>
     <icon/>
-    <permissions>
-      <permission>full data</permission>
-    </permissions>
     <context-menu>
-      <configure-context-menu-item></configure-context-menu-item>
+      <configure-context-menu-item/>
     </context-menu>
     <encoding id="value">
       <display-name>Value</display-name>
-      <data-spec>
-        <data-type>numeric</data-type>
-      </data-spec>
       <role-spec>
         <role-type>continuous-measure</role-type>
+        <role-type>discrete-measure</role-type>
       </role-spec>
+      <fields max-count="1"/>
       <encoding-icon token="hash"/>
+    </encoding>
+    <encoding id="target">
+      <display-name>Target</display-name>
+      <role-spec>
+        <role-type>continuous-measure</role-type>
+        <role-type>discrete-measure</role-type>
+      </role-spec>
+      <fields max-count="1"/>
+      <encoding-icon token="letter-t"/>
     </encoding>
   </worksheet-extension>
   <resources>

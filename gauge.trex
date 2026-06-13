@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
+  <worksheet-extension id="com.telasist.gauge.custom" extension-version="1.0.0">
+    <default-locale>es_MX</default-locale>
+    <name resource-id="name"/>
+    <description>Gauge Chart - Telasist</description>
+    <author name="Telasist BI" email="jadid.sanchez@telasist.com" organization="Telasist" website="https://telasist.com"/>
+    <min-api-version>1.11</min-api-version>
+    <source-location>
+      <url>REEMPLAZAR_CON_TU_URL</url>
+    </source-location>
+    <icon>iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAABuklEQVR4nO2bvU7DMBCEP4QKIW4CIXoDD8DKNRI8CAIhXg4hXg4hXq4hXg4hXo4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4h</icon>
+    <context-menu>
+      <configure-context-menu-item></configure-context-menu-item>
+    </context-menu>
+    <encoding id="smm-gauge+measures">
+      <display-name>Measure</display-name>
+      <data-spec>
+        <data-type>numeric</data-type>
+      </data-spec>
+      <role-spec>
+        <role-type>continuous-measure</role-type>
+      </role-spec>
+      <encoding-icon token="hash"/>
+    </encoding>
+  </worksheet-extension>
+  <resources>
+    <resource id="name">
+      <text locale="es_MX">Gauge Chart</text>
+      <text locale="en_US">Gauge Chart</text>
+    </resource>
+  </resources>
+</manifest>

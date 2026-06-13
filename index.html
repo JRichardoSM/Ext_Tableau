@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gauge Chart</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tableau-extensions-api/1.11.0/tableau.extensions.api.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    #container {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    svg#gauge { overflow: visible; }
+    #score-label {
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      font-weight: bold;
+      fill: #222;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    #config-panel {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none; align-items: center; justify-content: center;
+      z-index: 999;
+    }
+    #config-panel.open { display: flex; }
+    .config-box {
+      background: #fff; border-radius: 8px;
+      padding: 24px; min-width: 340px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+    }
+    .config-box h2 { font-size: 16px; margin-bottom: 16px; color: #333; }
+    .config-row { display: flex; align-items: center; margin-bottom: 10px; gap: 8px; }
+    .config-row label { width: 120px; font-size: 13px; color: #555; }
+    .config-row input[type=number], .config-row input[type=text] {
+      flex: 1; padding: 5px 8px; border: 1px solid #ccc;
+      border-radius: 4px; font-size: 13px;
+    }
+    .config-row input[type=color] { width: 40px; height: 28px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; }
+    .config-row .color-val { width: 70px; font-size: 12px; }
+    .btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+    button.btn-ok { background: #0B2545; color: #fff; border: none; border-radius: 4px; padding: 8px 20px; cursor: pointer; font-size: 13px; }
+    button.btn-cancel { background: #eee; color: #333; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-size: 13px; }
+    button.btn-ok:hover { background: #13A8A8; }
+  </style>
+</head>
+<body>
+<div id="container">
+  <svg id="gauge" viewBox="-110 -110 220 130" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<!-- Config panel -->
+<div id="config-panel">
+  <div class="config-box">
+    <h2>⚙ Configurar Gauge</h2>
+    <div class="config-row"><label>Mínimo</label><input type="number" id="cfg-min" value="0"/></div>
+    <div class="config-row"><label>Máx seg.1 (Verde)</label><input type="number" id="cfg-s1" value="33"/></div>
+    <div class="config-row"><label>Máx seg.2 (Amarillo)</label><input type="number" id="cfg-s2" value="67"/></div>
+    <div class="config-row"><label>Máximo total</label><input type="number" id="cfg-max" value="100"/></div>
+    <div class="config-row"><label>Color seg.1</label><input type="color" id="cfg-c1" value="#3e8e2a"/><input type="text" class="color-val" id="cfg-c1t" value="#3e8e2a"/></div>
+    <div class="config-row"><label>Color seg.2</label><input type="color" id="cfg-c2" value="#f2e52c"/><input type="text" class="color-val" id="cfg-c2t" value="#f2e52c"/></div>
+    <div class="config-row"><label>Color seg.3</label><input type="color" id="cfg-c3" value="#ff0000"/><input type="text" class="color-val" id="cfg-c3t" value="#ff0000"/></div>
+    <div class="config-row"><label>Sufijo (ej: min.)</label><input type="text" id="cfg-suffix" value=" min."/></div>
+    <div class="config-row"><label>Decimales</label><input type="number" id="cfg-dec" value="0" min="0" max="3"/></div>
+    <div class="btn-row">
+      <button class="btn-cancel" id="btn-cancel">Cancelar</button>
+      <button class="btn-ok" id="btn-ok">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG DEFAULT ──────────────────────────────────────────────
+var cfg = {
+  min: 0, s1: 33, s2: 67, max: 100,
+  c1: '#3e8e2a', c2: '#f2e52c', c3: '#ff0000',
+  suffix: ' min.', decimals: 0
+};
+
+var currentValue = null;
+var unregisterHandlerFn = null;
+
+// ── SVG HELPERS ─────────────────────────────────────────────────
+function polarToXY(angleDeg, r) {
+  var a = (angleDeg - 180) * Math.PI / 180;
+  return { x: r * Math.cos(a), y: r * Math.sin(a) };
+}
+
+function arcPath(r, startDeg, endDeg) {
+  var s = polarToXY(startDeg, r);
+  var e = polarToXY(endDeg, r);
+  var large = (endDeg - startDeg) > 180 ? 1 : 0;
+  return 'M ' + s.x + ' ' + s.y + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + e.x + ' ' + e.y;
+}
+
+function makeTick(angleDeg, r1, r2, color, width) {
+  var p1 = polarToXY(angleDeg, r1);
+  var p2 = polarToXY(angleDeg, r2);
+  return '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y +
+         '" stroke="' + color + '" stroke-width="' + width + '"/>';
+}
+
+function makeTickLabel(angleDeg, r, text) {
+  var p = polarToXY(angleDeg, r);
+  return '<text x="' + p.x + '" y="' + p.y +
+         '" font-family="Arial,sans-serif" font-size="9" fill="#444" text-anchor="middle" dominant-baseline="central">' +
+         text + '</text>';
+}
+
+// ── DRAW GAUGE ──────────────────────────────────────────────────
+function drawGauge(value) {
+  var svg = document.getElementById('gauge');
+  var c = cfg;
+  var outerR = 90, innerR = 54, needleR = 82;
+
+  // Angle mapping: 180° (left) → 0° (right), semicircle
+  function valToAngle(v) {
+    var pct = Math.max(0, Math.min(1, (v - c.min) / (c.max - c.min)));
+    return 180 - pct * 180; // 180=left, 0=right
+  }
+
+  var a0  = 180; // min
+  var a1  = valToAngle(c.s1);
+  var a2  = valToAngle(c.s2);
+  var a3  = 0;   // max
+
+  // Arcos de segmentos
+  var html = '';
+
+  // Seg 1 verde
+  html += '<path d="' + arcPath(outerR, a0, a1) + '" fill="none" stroke="' + c.c1 + '" stroke-width="36" stroke-linecap="butt"/>';
+  // Seg 2 amarillo
+  if (a1 > a2) {
+    html += '<path d="' + arcPath(outerR, a1, a2) + '" fill="none" stroke="' + c.c2 + '" stroke-width="36" stroke-linecap="butt"/>';
+  }
+  // Seg 3 rojo
+  if (a2 > a3) {
+    html += '<path d="' + arcPath(outerR, a2, a3) + '" fill="none" stroke="' + c.c3 + '" stroke-width="36" stroke-linecap="butt"/>';
+  }
+
+  // Arco interior blanco (hueco del donut)
+  html += '<path d="' + arcPath(outerR - 36, 180, 0) + '" fill="none" stroke="white" stroke-width="2"/>';
+  html += '<path d="' + arcPath(outerR, 180, 0) + '" fill="none" stroke="white" stroke-width="2"/>';
+
+  // Ticks
+  var numTicks = 8;
+  for (var i = 0; i <= numTicks; i++) {
+    var pct = i / numTicks;
+    var v = c.min + pct * (c.max - c.min);
+    var ang = 180 - pct * 180;
+    var isMajor = (i === 0 || i === numTicks || i === numTicks/2);
+    html += makeTick(ang, outerR + 4, outerR + (isMajor ? 12 : 8), '#666', isMajor ? 1.5 : 1);
+    if (isMajor) {
+      var label = v % 1 === 0 ? v.toString() : v.toFixed(1);
+      html += makeTickLabel(ang, outerR + 20, label);
+    }
+  }
+
+  // Línea base del velocímetro
+  html += '<line x1="-' + outerR + '" y1="0" x2="' + outerR + '" y2="0" stroke="#ccc" stroke-width="1"/>';
+
+  // Aguja
+  if (value !== null && !isNaN(value)) {
+    var needleAngle = valToAngle(value);
+    var np = polarToXY(needleAngle, needleR);
+    var nb1 = polarToXY(needleAngle + 90, 6);
+    var nb2 = polarToXY(needleAngle - 90, 6);
+
+    html += '<polygon points="' + np.x + ',' + np.y + ' ' + nb1.x + ',' + nb1.y + ' ' + nb2.x + ',' + nb2.y +
+            '" fill="#111" stroke="#111" stroke-width="0.5"/>';
+
+    // Círculo central
+    html += '<circle cx="0" cy="0" r="7" fill="#111"/>';
+    html += '<circle cx="0" cy="0" r="4" fill="#fff"/>';
+
+    // Score label
+    var display = value.toFixed(c.decimals) + c.suffix;
+    html += '<text x="0" y="22" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#222" text-anchor="middle">' + display + '</text>';
+  } else {
+    html += '<circle cx="0" cy="0" r="7" fill="#aaa"/>';
+    html += '<circle cx="0" cy="0" r="4" fill="#fff"/>';
+    html += '<text x="0" y="22" font-family="Arial,sans-serif" font-size="11" fill="#999" text-anchor="middle">Sin datos</text>';
+  }
+
+  svg.innerHTML = html;
+}
+
+// ── CONFIG PANEL ────────────────────────────────────────────────
+function syncColorInputs(id) {
+  var picker = document.getElementById('cfg-' + id);
+  var text   = document.getElementById('cfg-' + id + 't');
+  picker.addEventListener('input', function() { text.value = picker.value; });
+  text.addEventListener('input', function() {
+    if (/^#[0-9a-fA-F]{6}$/.test(text.value)) picker.value = text.value;
+  });
+}
+syncColorInputs('c1'); syncColorInputs('c2'); syncColorInputs('c3');
+
+function openConfig() {
+  document.getElementById('cfg-min').value    = cfg.min;
+  document.getElementById('cfg-s1').value     = cfg.s1;
+  document.getElementById('cfg-s2').value     = cfg.s2;
+  document.getElementById('cfg-max').value    = cfg.max;
+  document.getElementById('cfg-c1').value     = cfg.c1;
+  document.getElementById('cfg-c1t').value    = cfg.c1;
+  document.getElementById('cfg-c2').value     = cfg.c2;
+  document.getElementById('cfg-c2t').value    = cfg.c2;
+  document.getElementById('cfg-c3').value     = cfg.c3;
+  document.getElementById('cfg-c3t').value    = cfg.c3;
+  document.getElementById('cfg-suffix').value = cfg.suffix;
+  document.getElementById('cfg-dec').value    = cfg.decimals;
+  document.getElementById('config-panel').classList.add('open');
+}
+
+document.getElementById('btn-cancel').addEventListener('click', function() {
+  document.getElementById('config-panel').classList.remove('open');
+});
+
+document.getElementById('btn-ok').addEventListener('click', function() {
+  cfg.min      = parseFloat(document.getElementById('cfg-min').value)   || 0;
+  cfg.s1       = parseFloat(document.getElementById('cfg-s1').value)    || 33;
+  cfg.s2       = parseFloat(document.getElementById('cfg-s2').value)    || 67;
+  cfg.max      = parseFloat(document.getElementById('cfg-max').value)   || 100;
+  cfg.c1       = document.getElementById('cfg-c1t').value || document.getElementById('cfg-c1').value;
+  cfg.c2       = document.getElementById('cfg-c2t').value || document.getElementById('cfg-c2').value;
+  cfg.c3       = document.getElementById('cfg-c3t').value || document.getElementById('cfg-c3').value;
+  cfg.suffix   = document.getElementById('cfg-suffix').value;
+  cfg.decimals = parseInt(document.getElementById('cfg-dec').value) || 0;
+
+  // Guardar config en settings de la extensión
+  try {
+    tableau.extensions.settings.set('gaugeCfg', JSON.stringify(cfg));
+    tableau.extensions.settings.saveAsync();
+  } catch(e) {}
+
+  document.getElementById('config-panel').classList.remove('open');
+  drawGauge(currentValue);
+});
+
+// ── TABLEAU INTEGRATION ─────────────────────────────────────────
+function getValueFromSheet(worksheet) {
+  return worksheet.getSummaryDataAsync({ maxRows: 1 }).then(function(data) {
+    if (!data || data.data.length === 0 || data.data[0].length === 0) return null;
+    // Buscar columna de medida numérica (ignorar dimensiones)
+    var row = data.data[0];
+    var cols = data.columns;
+    for (var i = 0; i < cols.length; i++) {
+      if (cols[i].dataType === 'float' || cols[i].dataType === 'int') {
+        var v = parseFloat(row[i].value);
+        if (!isNaN(v)) return v;
+      }
+    }
+    // Fallback: primer valor numérico
+    for (var j = 0; j < row.length; j++) {
+      var v2 = parseFloat(row[j].value);
+      if (!isNaN(v2)) return v2;
+    }
+    return null;
+  });
+}
+
+function refreshGauge() {
+  try {
+    var sheet = tableau.extensions.worksheetContent.worksheet;
+    getValueFromSheet(sheet).then(function(v) {
+      currentValue = v;
+      drawGauge(v);
+    }).catch(function() {
+      drawGauge(null);
+    });
+  } catch(e) {
+    drawGauge(currentValue);
+  }
+}
+
+tableau.extensions.initializeAsync({ configure: openConfig }).then(function() {
+  // Cargar config guardada
+  try {
+    var saved = tableau.extensions.settings.get('gaugeCfg');
+    if (saved) cfg = Object.assign(cfg, JSON.parse(saved));
+  } catch(e) {}
+
+  // Leer datos
+  refreshGauge();
+
+  // Escuchar cambios de filtros / datos
+  try {
+    var sheet = tableau.extensions.worksheetContent.worksheet;
+    if (unregisterHandlerFn) unregisterHandlerFn();
+    unregisterHandlerFn = sheet.addEventListener(
+      tableau.TableauEventType.SummaryDataChanged, refreshGauge
+    );
+  } catch(e) {}
+
+}).catch(function(err) {
+  // Modo preview sin Tableau — mostrar gauge con valor demo
+  drawGauge(75);
+});
+</script>
+</body>
+</html>

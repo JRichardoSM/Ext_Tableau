@@ -7,7 +7,7 @@
     <author name="Telasist BI" email="jadid.sanchez@telasist.com" organization="Telasist" website="https://telasist.com"/>
     <min-api-version>1.11</min-api-version>
     <source-location>
-      <url>REEMPLAZAR_CON_TU_URL</url>
+      <url>https://jrichardosm.github.io/Ext_Tableau</url>
     </source-location>
     <icon>iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAABuklEQVR4nO2bvU7DMBCEP4QKIW4CIXoDD8DKNRI8CAIhXg4hXg4hXq4hXg4hXo4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4hXg4h</icon>
     <context-menu>

@@ -122,38 +122,69 @@ document.getElementById('bok').addEventListener('click',function(){
 });
 
 // ── LEER DATOS ───────────────────────────────────────────────────
-// Patrón oficial: SummaryDataChanged → getSummaryDataReaderAsync
-// El evento se dispara cuando se arrastra un campo al Marks card
+// Usa getVisualSpecificationAsync para encontrar el campo mapeado
+// al encoding 'smm-gauge+measures' (mismo id que Infotopics)
+// luego getSummaryDataReaderAsync para leer el valor
 function updateDataAndRender(){
   if(!ws) return;
-  ws.getSummaryDataReaderAsync()
-    .then(function(reader){
-      reader.getAllPagesAsync()
-        .then(function(dataTable){
-          reader.releaseAsync();
-          if(!dataTable||!dataTable.data||dataTable.data.length===0){
-            draw(null); return;
-          }
-          var row=dataTable.data[0], cols=dataTable.columns, val=null;
-          // Buscar primer columna float o int con valor numérico
-          for(var i=0;i<cols.length;i++){
-            if(cols[i].dataType==='float'||cols[i].dataType==='int'){
-              var raw=row[i].nativeValue!==undefined&&row[i].nativeValue!==null
-                ?row[i].nativeValue:row[i].value;
-              var v=parseFloat(String(raw).replace(/[,$\s%]/g,''));
-              if(!isNaN(v)&&isFinite(v)){val=v;break;}
-            }
-          }
-          // Fallback: cualquier valor numérico
-          if(val===null){
-            for(var j=0;j<row.length;j++){
-              var r2=row[j].nativeValue!==undefined&&row[j].nativeValue!==null
-                ?row[j].nativeValue:row[j].value;
-              var v2=parseFloat(String(r2).replace(/[,$\s%]/g,''));
-              if(!isNaN(v2)&&isFinite(v2)){val=v2;break;}
-            }
-          }
-          curVal=val; draw(val);
+
+  ws.getVisualSpecificationAsync()
+    .then(function(visualSpec){
+      var marksCard = visualSpec.marksSpecifications[visualSpec.activeMarksSpecificationIndex];
+      var fieldName = null;
+
+      // Buscar el campo mapeado al encoding 'smm-gauge+measures'
+      for(var i=0; i<marksCard.encodings.length; i++){
+        var enc = marksCard.encodings[i];
+        if(enc.id === 'smm-gauge+measures' && enc.field){
+          fieldName = enc.field.name;
+          break;
+        }
+      }
+
+      // Si no hay campo mapeado, mostrar sin datos
+      if(!fieldName){ draw(null); return; }
+
+      // Leer los datos del worksheet
+      ws.getSummaryDataReaderAsync()
+        .then(function(reader){
+          reader.getAllPagesAsync()
+            .then(function(dataTable){
+              reader.releaseAsync();
+
+              if(!dataTable||!dataTable.data||dataTable.data.length===0){
+                draw(null); return;
+              }
+
+              var row=dataTable.data[0], cols=dataTable.columns, val=null;
+
+              // Buscar columna por nombre del campo
+              for(var j=0; j<cols.length; j++){
+                if(cols[j].fieldName===fieldName ||
+                   cols[j].fieldName.indexOf(fieldName)>=0 ||
+                   fieldName.indexOf(cols[j].fieldName)>=0){
+                  var raw=row[j].nativeValue!==undefined&&row[j].nativeValue!==null
+                    ?row[j].nativeValue:row[j].value;
+                  var v=parseFloat(String(raw).replace(/[,$\s%]/g,''));
+                  if(!isNaN(v)&&isFinite(v)){val=v;break;}
+                }
+              }
+
+              // Fallback: primera columna numérica
+              if(val===null){
+                for(var k=0; k<cols.length; k++){
+                  if(cols[k].dataType==='float'||cols[k].dataType==='int'){
+                    var r2=row[k].nativeValue!==undefined&&row[k].nativeValue!==null
+                      ?row[k].nativeValue:row[k].value;
+                    var v2=parseFloat(String(r2).replace(/[,$\s%]/g,''));
+                    if(!isNaN(v2)&&isFinite(v2)){val=v2;break;}
+                  }
+                }
+              }
+
+              curVal=val; draw(val);
+            })
+            .catch(function(){draw(null);});
         })
         .catch(function(){draw(null);});
     })
@@ -161,25 +192,14 @@ function updateDataAndRender(){
 }
 
 window.addEventListener('resize',function(){draw(curVal);});
-
-// ── INIT ─────────────────────────────────────────────────────────
 draw(null);
 
 tableau.extensions.initializeAsync({configure:openCfg})
   .then(function(){
     try{var s=tableau.extensions.settings.get('cfg');if(s)C=Object.assign(C,JSON.parse(s));}catch(e){}
     draw(null);
-
-    // Obtener worksheet y registrar listener
     ws = tableau.extensions.worksheetContent.worksheet;
-
-    // Escuchar cambios — se dispara cuando se arrastra campo al Marks card
-    ws.addEventListener(
-      tableau.TableauEventType.SummaryDataChanged,
-      updateDataAndRender
-    );
-
-    // Intentar leer datos iniciales
+    ws.addEventListener(tableau.TableauEventType.SummaryDataChanged, updateDataAndRender);
     updateDataAndRender();
   })
   .catch(function(){draw(75);});
